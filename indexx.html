@@ -1,1 +1,5119 @@
+<!DOCTYPE html>
+<html lang="ja">
 
+<head>
+  <meta charset="UTF-8" />
+  <base target="_top">
+  <title>ちゃチャットLite</title>
+  <style>
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+      background: #000;
+      color: #fff;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-20px); }
+      10% { opacity: 1; transform: translateY(0); }
+      80% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    .chat-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 640px;
+      height: calc(100vh - 60px);
+      margin: 60px auto 0;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 20px;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    #character-bg {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 100%;
+      object-fit: contain;
+      object-position: top center;
+      opacity: 0.2;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      max-height: 100%;
+      margin-bottom: 1rem;
+      padding-right: 0.5rem;
+      padding-top: 10px;
+      position: relative;
+      z-index: 2;
+      scrollbar-width: thin;
+      scrollbar-color: #666 transparent;
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: #666;
+      border-radius: 8px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .message {
+      margin: 0.5rem 0;
+    }
+
+    .bubble {
+      display: inline-block;
+      max-width: 70%;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      opacity: 0.85;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      overflow: visible;
+    }
+
+    .user {
+      text-align: right;
+    }
+
+    .user .bubble {
+      background: rgba(102, 102, 102, 0.7);
+      color: #fff;
+      text-align: left;
+    }
+
+    .assistant .bubble {
+      background: rgba(68, 68, 68, 0.7);
+      color: #fff;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      flex-grow: 1;
+      resize: none;
+      padding: 0.75rem;
+      border: 1px solid #666;
+      border-radius: 10px;
+      font-size: 1rem;
+      background: #222;
+      color: #fff;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      background: #444;
+      color: white;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    #settings {
+      font-size: 0.9rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      margin: 1rem auto;
+      border-radius: 16px;
+      display: none;
+      max-width: 640px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    #settings::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #settings::-webkit-scrollbar-thumb {
+      background: #666;
+      border-radius: 8px;
+    }
+
+    #settings::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .settings-toggle {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      background: #444;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+    }
+
+    .quick-action {
+      position: fixed;
+      top: 15px;
+      right: 70px;
+      background: #444;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+      user-select: none;
+    }
+
+    /* 設定画面のスタイル */
+    .settings-section {
+      background: #222;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-header h3 {
+      color: #fff;
+      margin: 0;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      color: #aaa;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      background: #333;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
+    .form-textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 0.75rem;
+      background: #333;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    .form-file {
+      width: 100%;
+      padding: 0.5rem;
+      background: #333;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+    }
+
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    .toggle-label {
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+
+    .dev-section {
+      background: #1a1a1a;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+      background: #4f80ff;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #666;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #ff4d4d;
+      color: white;
+    }
+
+    .settings-footer {
+      margin-top: 2rem;
+      text-align: right;
+    }
+
+    .token-usage {
+      color: #ccc;
+    }
+
+    .token-usage h4 {
+      margin: 0 0 1rem;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .token-stats {
+      display: grid;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .stat-item label {
+      display: block;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      color: #fff;
+    }
+
+    .token-period {
+      color: #888;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+    }
+
+    /* 開発者モードトグルのスタイル */
+    .dev-toggle-container {
+      margin-bottom: 1rem;
+      text-align: left;
+      padding-top: 0;
+    }
+
+    .dev-toggle-container .btn {
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+      opacity: 0.8;
+    }
+
+    .dev-toggle-container .btn:hover {
+      opacity: 1;
+    }
+
+    /* 開発者モードがアクティブな時のスタイル */
+    .dev-toggle-container .btn.active {
+      background: #4f80ff;
+      opacity: 1;
+    }
+
+    /* モバイル向け調整 */
+    @media (max-width: 640px) {
+      body {
+        padding-top: 50px;
+      }
+      
+      .chat-container {
+        width: 100%;
+        height: calc(100vh - 70px);
+        margin-top: 10px;
+        border-radius: 10px;
+        padding: 0.5rem;
+      }
+      
+      textarea {
+        font-size: 16px;
+      }
+      
+      .bubble {
+        max-width: 80%;
+      }
+      
+      .messages {
+        padding-top: 10px;
+      }
+      
+      .settings-toggle {
+        top: 10px;
+        right: 10px;
+      }
+      
+      .quick-action {
+        top: 10px;
+        right: 70px;
+      }
+      
+      .input-area {
+        margin-bottom: 40px;
+      }
+    }
+
+    /* データ閲覧ボタンのスタイル */
+    .data-viewer-toggle {
+      position: fixed;
+      top: 60px;
+      right: 15px;
+      background: #444;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+    }
+
+    /* データビューアーモーダルのスタイル */
+    .data-viewer-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      overflow: auto;
+    }
+
+    .data-viewer-content {
+      position: relative;
+      width: 80%;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 2rem;
+      background: #222;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .data-viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #444;
+    }
+
+    .data-viewer-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .data-category {
+      margin-bottom: 2rem;
+    }
+
+    .data-category-title {
+      color: #aaa;
+      font-size: 1.1rem;
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #333;
+    }
+
+    .data-item {
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: #333;
+      border-radius: 6px;
+    }
+
+    .data-key {
+      color: #66aaff;
+      font-weight: bold;
+      margin-bottom: 0.3rem;
+    }
+
+    .data-value {
+      color: #ddd;
+      word-break: break-all;
+      white-space: pre-wrap;
+      background: #2a2a2a;
+      padding: 0.5rem;
+      border-radius: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .data-value-editor {
+      width: 100%;
+      min-height: 100px;
+      max-height: 300px;
+      padding: 0.5rem;
+      background: #2a2a2a;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 4px;
+      font-family: monospace;
+      resize: vertical;
+    }
+
+    .data-edit-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+      gap: 0.5rem;
+    }
+
+    .data-edit-btn {
+      padding: 0.3rem 0.8rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .data-edit-save {
+      background: #4f80ff;
+      color: white;
+    }
+
+    .data-edit-cancel {
+      background: #666;
+      color: white;
+    }
+
+    .data-viewer-mode-switch {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+    }
+
+    .mode-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #333;
+      color: #fff;
+    }
+
+    .mode-btn.active {
+      background: #4f80ff;
+    }
+
+    /* モバイル向け調整を追加 */
+    @media (max-width: 640px) {
+      .data-viewer-toggle {
+        top: 60px;
+        right: 10px;
+      }
+      
+      .data-viewer-content {
+        width: 95%;
+        margin: 30px auto;
+        padding: 1rem;
+      }
+      
+      .data-viewer-modal {
+        width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+        position: fixed;
+        overflow-x: hidden;
+      }
+      
+      .data-item {
+        overflow-x: hidden;
+      }
+      
+      .data-value {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      
+      .data-value-editor {
+        max-width: 100%;
+      }
+    }
+
+    .story-intensity-btn {
+      padding: 0.4rem 0.8rem;
+      background: #333;
+      color: #ccc;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    
+    .story-intensity-btn:hover {
+      background: #444;
+    }
+    
+    .story-intensity-btn.active {
+      background: #4f80ff;
+      color: white;
+    }
+
+    /* フォトモードボタンのスタイル */
+    .photo-mode-toggle {
+      position: fixed;
+      top: 15px;
+      right: 125px;
+      background: #444;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+    }
+    
+    /* 既知情報ボタンのスタイル */
+    .known-facts-toggle {
+      position: fixed;
+      top: 15px;
+      right: 185px;
+      background: #444;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+    }
+    
+    /* モーダルのスタイル */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 20;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.7);
+    }
+    
+    .modal-content {
+      background-color: #222;
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 800px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #444;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: #eee;
+    }
+    
+    .modal-footer {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .close:hover {
+      color: #fff;
+    }
+    
+    /* モバイル向け調整 */
+    @media (max-width: 640px) {
+      .photo-mode-toggle {
+        top: 10px;
+        right: 125px;
+      }
+      
+      .known-facts-toggle {
+        top: 10px;
+        right: 185px;
+      }
+      
+      .modal-content {
+        width: 95%;
+        margin: 5% auto;
+      }
+    }
+    
+    /* フォトモード時のスタイル */
+    .photo-mode .bubble {
+      display: none !important;
+    }
+    
+    .photo-mode .message {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .photo-mode .input-area {
+      display: none !important;
+    }
+    
+    .photo-mode #character-bg {
+      opacity: 1 !important;
+      object-fit: contain !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 🛠 最新操作ボタン -->
+  <div class="quick-action" onclick="toggleQuickActions()">🔧</div>
+
+  <!-- 📷 フォトモードボタン -->
+  <div class="photo-mode-toggle" onclick="togglePhotoMode()">📷</div>
+
+  <!-- 📄 データ閲覧ボタン -->
+  <div class="data-viewer-toggle" onclick="toggleDataViewer()">📄</div>
+
+  <!-- 📗 既知情報ボタン -->
+  <div class="known-facts-toggle" onclick="toggleKnownFactsModal()">📗</div>
+
+  <!-- 📗 既知情報モーダル -->
+  <div id="knownFactsModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>📗 キャラクターについて知っている情報</h3>
+        <span class="close" onclick="toggleKnownFactsModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">
+          キャラクターの設定のうち、あなたが既に知っている情報を入力してください。<br>
+          この情報は地の文に含めても良い情報として扱われます。
+        </p>
+        <textarea id="knownFactsInput" class="form-textarea" style="min-height: 150px;" 
+                  placeholder="例：彼女は医者であること、魔法が使えること、ケーキが好きなこと..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button onclick="saveKnownFacts()" class="btn btn-primary">保存</button>
+        <button onclick="toggleKnownFactsModal()" class="btn btn-secondary">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🧩 最新操作パネル -->
+  <div id="quickActionsPanel" style="
+  display:none;
+  position: fixed;
+  top: 45px;
+  left: 15px;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 0.8rem;
+  font-size: 0.85rem;
+  z-index: 4;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+">
+    <b style="color:#ccc;">最新メッセージ操作</b><br><br>
+    <button onclick="handleQuickAction('save')" style="margin-bottom:0.5rem;">💾 記憶</button><br>
+    <button onclick="handleQuickAction('editBot')" style="margin-bottom:0.5rem;">✏️ 修正（キャラ）</button><br>
+    <button onclick="handleQuickAction('editUser')" style="margin-bottom:0.5rem;">✏️ 修正（自分）</button><br>
+    <button onclick="handleQuickAction('editLastMessage')" style="margin-bottom:0.5rem;">✏️ 最新修正</button><br>
+    <button onclick="handleQuickAction('regen')" style="margin-bottom:0.5rem;">🔁 再生成</button><br>
+  </div>
+
+  <div class="settings-toggle" onclick="toggleSettings()">⚙️ </div>
+  <div id="settings">
+    <!-- 開発者モードトグル -->
+    <div class="dev-toggle-container" style="display:none;">
+      <!-- 開発者モードボタンは設定フッターに移動したため非表示 -->
+    </div>
+
+    <!-- セクション1：キャラ設定 -->
+    <div class="settings-section">
+      <div class="section-header">
+        <h3>👤 キャラ設定</h3>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <label>キャラ設定（初期プロンプト）</label>
+          <textarea id="charPrompt" class="form-textarea" placeholder="キャラクターの詳細な設定を記述してください">名前：性別、特徴</textarea>
+        </div>
+        <div class="form-group">
+          <label>🖼️ 背景画像</label>
+          <div style="position: relative;">
+            <input type="file" id="backgroundInput" accept="image/*">
+            <div id="selectedFileInfo" style="margin-top: 0.5rem; font-size: 0.85rem; color: #aaa;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- セクション2：ユーザー設定 -->
+    <div class="settings-section">
+      <div class="section-header">
+        <h3>🙋 あなたの設定</h3>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <label>プロフィール</label>
+          <input type="text" id="charSelfSetting" class="form-input" placeholder="">
+        </div>
+        <div class="form-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="storyModeToggle" onchange="updateStoryMode()">
+            <span class="toggle-label">📖 ストーリーモード</span>
+          </label>
+          <div id="storyModeInfo" style="display: none; margin-top: 0.5rem; font-size: 0.8rem; color: #aaa; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 6px;">
+            ストーリーモードでは、キャラクターのセリフと地の文が交互に構成された、小説のような表現になります。地の文が多めの描写寄りの構成で、より物語的な雰囲気が楽しめます。
+          </div>
+          
+          <!-- 物語モード濃度切替 -->
+          <div id="storyIntensitySelector" style="display: none; margin-top: 0.8rem;">
+            <label style="display: block; margin-bottom: 0.4rem; color: #bbb; font-size: 0.9rem;">物語濃度</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="intensityMedium" class="story-intensity-btn active" onclick="setStoryIntensity('medium')">ミドル</button>
+              <button id="intensityHigh" class="story-intensity-btn" onclick="setStoryIntensity('high')">ハイ</button>
+            </div>
+            <div id="intensityInfo" style="margin-top: 0.5rem; font-size: 0.8rem; color: #aaa; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
+              ミドル：400文字程度、バランスの取れた物語描写
+            </div>
+            
+            <!-- キャラがストーリー展開をリードする確率スライダー -->
+            <div style="margin-top: 1rem; display: block;">
+              <label style="display: block; margin-bottom: 0.4rem; color: #bbb; font-size: 0.9rem;">
+                キャラが物語をリードする確率
+              </label>
+              <div style="display: flex; align-items: center; gap: 0.8rem;">
+                <input type="range" id="storyLeadSlider" min="0" max="100" step="5" value="75" 
+                       style="flex-grow: 1;" oninput="updateStoryLeadProbability(this.value)">
+                <span id="storyLeadValue" style="color: #4f80ff; font-weight: bold; min-width: 3rem; text-align: right;">75%</span>
+              </div>
+              <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #aaa; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                高い値ほど、キャラクターが新しい場所や話題を積極的に提案します
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="resetEmotionToggle">
+            <span class="toggle-label">🔄 感情パラメタを初期化する</span>
+          </label>
+          <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #aaa; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 6px;">
+            ONにすると設定変更時に感情パラメタを再計算します。OFFにすると現在の感情値をそのまま維持します。（初期設定：OFF）
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- セクション3：開発者モード -->
+    <div id="devMode" class="settings-section" style="display: none;">
+      <div class="section-header">
+        <h3>🛠️ 開発者設定</h3>
+        <label class="toggle-switch">
+          <input type="checkbox" id="debugToggle" onchange="updateDebugMode()">
+          <span class="toggle-label">🧪 デバッグモード</span>
+        </label>
+      </div>
+
+      <!-- エラーログ表示エリア -->
+      <div id="errorLogArea" class="dev-section" style="display: none;">
+        <h4 style="margin-top: 0; color: #ff6b6b;">⚠️ エラーログ</h4>
+        <div id="errorLogContent" style="max-height: 300px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all;">
+          エラーログはありません
+        </div>
+        <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+          <button onclick="clearErrorLogs()" class="btn btn-secondary" style="font-size: 0.85rem;">ログをクリア</button>
+          <button onclick="copyErrorLogs()" class="btn btn-secondary" style="font-size: 0.85rem;">クリップボードにコピー</button>
+        </div>
+      </div>
+
+      <!-- 感情パラメータ -->
+      <div id="emotionParamsArea" class="dev-section"></div>
+
+      <!-- キャラリセット -->
+      <div class="dev-section">
+        <button onclick="resetCharacterDataClientOnly()" class="btn btn-danger">
+          ⚠️ キャラデータリセット
+        </button>
+        <div style="font-size: 0.8rem; color: #aaa; margin-top: 0.5rem;">
+          会話履歴・記憶・感情パラメタなどのキャラクターデータをリセットします。APIキーは保持されます。
+        </div>
+        
+        <button onclick="resetMessagesOnly()" class="btn btn-warning" style="margin-top: 1rem;">
+          🗑️ メッセージのみリセット
+        </button>
+        <div style="font-size: 0.8rem; color: #aaa; margin-top: 0.5rem;">
+          会話履歴と感情パラメタのみをリセットします。キャラ設定・画像・ユーザー設定は保持されます。
+        </div>
+      </div>
+
+      <!-- トークン使用状況 -->
+      <div id="tokenUsageArea" class="dev-section"></div>
+
+      <!-- GPT-4oログ表示 -->
+      <div id="gpt4oLogsArea" class="dev-section">
+        <h4>📝 GPT-4o 物語展開ログ</h4>
+        <div id="gpt4oLogsContent" style="max-height: 300px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all;">
+          ログはありません
+        </div>
+        <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+          <button onclick="clearGpt4oLogs()" class="btn btn-secondary" style="font-size: 0.85rem;">ログをクリア</button>
+          <button onclick="updateGpt4oLogsDisplay()" class="btn btn-secondary" style="font-size: 0.85rem;">更新</button>
+        </div>
+      </div>
+
+      <!-- APIキー -->
+      <div class="dev-section">
+        <div class="form-group">
+          <label>🔑 GPT APIキー</label>
+          <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存ボタン -->
+    <div class="settings-footer">
+      <button id="devToggle" onclick="toggleDevMode()" class="btn btn-secondary" style="float:left; margin-right:1rem;">
+        🛠 開発者モード
+      </button>
+      <button onclick="saveSettings()" class="btn btn-primary">💾 設定を保存</button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <img id="character-bg">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <textarea id="userInput" placeholder="メッセージを入力..." rows="1"></textarea>
+      <button onclick="try { sendMessage(); } catch(e) { console.error('送信ボタンエラー:', e); alert('エラーが発生しました: ' + e); }">送信</button>
+    </div>
+  </div>
+
+  <div id="regenerateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
+    <div style="position: relative; max-width: 500px; margin: 100px auto; padding: 1.5rem; background: #222; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      <h3 style="margin: 0 0 1rem; color: #fff; font-size: 1rem;">再生成したい内容を自由に入力してください（任意）</h3>
+      <textarea id="regenPrompt" 
+        style="width: 100%; min-height: 100px; padding: 0.75rem; background: #333; color: #fff; border: 1px solid #555; border-radius: 8px; font-size: 0.9rem;"
+        placeholder="例：もっと優しく言ってほしい／バトル展開にして！　など"></textarea>
+      <div style="margin-top: 1rem; text-align: right;">
+        <button onclick="document.getElementById('regenerateModal').style.display='none';" style="margin-right: 0.5rem; background: #444;">キャンセル</button>
+        <button onclick="executeRegeneration()" style="background: #555;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- データビューアーモーダル -->
+  <div id="dataViewerModal" class="data-viewer-modal">
+    <div class="data-viewer-content">
+      <div class="data-viewer-header">
+        <h3 style="margin: 0; color: #fff; font-size: 1.2rem;">📄 保存データ一覧</h3>
+        <button class="data-viewer-close" onclick="toggleDataViewer()">✖</button>
+      </div>
+      <div class="data-viewer-mode-switch">
+        <button id="viewModeBtn" class="mode-btn active" onclick="switchDataViewerMode('view')">閲覧モード</button>
+        <button id="editModeBtn" class="mode-btn" onclick="switchDataViewerMode('edit')">編集モード</button>
+      </div>
+      <div id="dataViewerContent"></div>
+    </div>
+  </div>
+
+  <!-- 後で読み込む必要があるJSファイル -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <script>
+    // GAS環境向けのデータストア抽象化
+    const dataStore = {
+      // ローカルキャッシュ
+      cache: {},
+      
+      // データ取得
+      getItem(key) {
+        // キャッシュを確認
+        if (this.cache[key] !== undefined) {
+          return this.cache[key];
+        }
+        
+        // 非同期取得を開始
+        this._fetchAsync(key);
+        
+        // 初回は空を返す
+        return "";
+      },
+      
+      // データ保存
+      setItem(key, value) {
+        // キャッシュに保存
+        this.cache[key] = value;
+        
+        // サーバーに保存
+        google.script.run
+          .withSuccessHandler(() => {})
+          .withFailureHandler((error) => console.error("保存エラー:", error))
+          .saveUserData(key, value);
+        
+        return value;
+      },
+      
+      // ローカルストレージに保存（ブラウザ内のみ）
+      setLocalItem(key, value) {
+        try {
+          localStorage.setItem(key, value);
+          
+          // 画像データの場合はbase64文字列をcacheとサーバーの両方に保存
+          if (key === "bgImageData" && value && value.startsWith("data:image")) {
+            this.cache["avatar_url"] = value;
+            this.setItem("avatar_url", value);
+          }
+        } catch (e) {
+          console.error("ローカルストレージ保存エラー:", e);
+        }
+      },
+      
+      // ローカルストレージから取得
+      getLocalItem(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch (e) {
+          console.error("ローカルストレージ取得エラー:", e);
+          return null;
+        }
+      },
+      
+      // データ削除
+      removeItem(key) {
+        // キャッシュから削除
+        delete this.cache[key];
+        
+        // サーバーから削除（空文字列を送信して確実に削除）
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log(`データ削除完了: ${key}`);
+          })
+          .withFailureHandler((error) => console.error("削除エラー:", error))
+          .saveUserData(key, "");
+      },
+      
+      // 非同期取得
+      _fetchAsync(key) {
+        google.script.run
+          .withSuccessHandler((value) => {
+            this.cache[key] = value;
+            
+            // 特定のキーの場合は追加処理
+            if (key === "avatar_url" && value) {
+              // 背景画像データをローカルストレージにも保存
+              this.setLocalItem("bgImageData", value);
+              
+              // 画像の表示を更新
+              const bgImage = document.getElementById("character-bg");
+              if (bgImage) {
+                bgImage.src = value;
+              }
+            }
+            
+            // 更新イベントを発火
+            document.dispatchEvent(new CustomEvent('datastore_updated', {
+              detail: { key, newValue: value }
+            }));
+          })
+          .withFailureHandler((error) => console.error("取得エラー:", error))
+          .getUserData(key);
+      },
+      
+      // 変更をフラッシュする関数（GAS版では個別に即時保存されるため実質不要）
+      flushChanges() {
+        // 元のコードとの互換性のために空の関数を用意
+        console.log("flushChanges called - この関数はGAS版では不要です");
+        return;
+      },
+      
+      // サーバーから全データを初期化ロード
+      initializeFromServer() {
+        console.log("サーバーからデータを初期化ロード中...");
+        google.script.run
+          .withSuccessHandler((allData) => {
+            if (!allData) {
+              console.log("サーバーにデータがありません");
+              return;
+            }
+            
+            // 全データをキャッシュに保存
+            this.cache = { ...allData };
+            
+            // 重要なデータを初期化
+            this._initializeUI();
+            
+            console.log("サーバーデータの読み込みが完了しました");
+          })
+          .withFailureHandler((error) => {
+            console.error("サーバーデータ初期化エラー:", error);
+          })
+          .getAllUserData();
+      },
+      
+      // UIを初期化
+      _initializeUI() {
+        // キャラ設定の復元（空文字列やnullは復元しない）
+        const characterPrompt = this.cache["character_prompt"];
+        if (characterPrompt && characterPrompt.trim() !== "") {
+          document.getElementById("charPrompt").value = characterPrompt;
+        }
+        
+        // 自己設定の復元（空文字列やnullは復元しない）
+        const charSelf = this.cache["char_self"];
+        if (charSelf && charSelf.trim() !== "") {
+          document.getElementById("charSelfSetting").value = charSelf;
+        }
+        
+        // APIキーの復元
+        const apiKey = this.cache["openai_api_key"];
+        if (apiKey) {
+          document.getElementById("apiKey").value = apiKey;
+        }
+        
+        // ストーリーモードの復元
+        const storyMode = this.cache["story_mode"];
+        if (storyMode) {
+          document.getElementById("storyModeToggle").checked = storyMode === "1";
+        }
+        
+        // 背景画像の復元（空文字列やnullは復元しない）
+        const avatarUrl = this.cache["avatar_url"];
+        if (avatarUrl && avatarUrl.trim() !== "") {
+          document.getElementById("character-bg").src = avatarUrl;
+          this.setLocalItem("bgImageData", avatarUrl);
+        }
+        
+        // 感情パラメータの表示更新
+        renderEmotionParams();
+        
+        // 会話履歴の復元（空配列やnullは復元しない）
+        const chatHistory = JSON.parse(this.cache["chat_history"] || "[]");
+        if (chatHistory && chatHistory.length > 0) {
+          const messagesContainer = document.getElementById("messages");
+          messagesContainer.innerHTML = ""; // 初期化
+          
+          // 会話履歴を表示
+          chatHistory.forEach(msg => {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${msg.role}`;
+            msgDiv.innerHTML = `<div class="bubble">${msg.content}</div>`;
+            messagesContainer.appendChild(msgDiv);
+          });
+          
+          // 最新メッセージにスクロール
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      },
+      
+      // すべてのデータを取得
+      getAllData() {
+        // サーバーから最新のデータを取得するのではなく、現在のキャッシュから返す
+        // データビューア用に簡易的な実装
+        return { ...this.cache };
+      }
+    };
+
+    const model = "gpt-4.1-mini";
+    const gpt4oModel = "gpt-4o"; // 追加：GPT-4oモデル名
+    
+    // ページロード時の初期化処理
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("DOMContentLoaded: アプリの初期化を開始します");
+      
+      // サーバーからデータを取得
+      dataStore.initializeFromServer();
+      
+      // 設定タブの初期化
+      document.querySelector('.tab-header').click();
+      
+      // 開発者モードの初期設定
+      if (dataStore.getItem("dev_mode") === "1") {
+        document.getElementById("devMode").style.display = "block";
+        document.getElementById("devToggle").classList.add("active");
+      }
+      
+      // デバッグモードの初期設定
+      if (dataStore.getItem("debug_mode") === "1") {
+        document.getElementById("debugToggle").checked = true;
+        updateDebugMode();
+      }
+      
+      console.log("アプリの初期化が完了しました");
+    });
+
+    const compressPrompt = `以下の長期記憶を1〜3文で要約してください。
+重複は統合し、重要な特徴のみ残してください。
+
+出力は以下の形式に従ってください（その他の出力は禁止）：
+
+{
+  "summary": "..."
+}
+`;
+
+    // 追加：会話の要約を取得する関数（200文字制限）
+    async function getConversationSummary() {
+      const apiKey = dataStore.getItem("openai_api_key");
+      if (!apiKey) return "";
+      
+      try {
+        // 直近のメッセージを取得
+        const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        if (history.length < 3) return ""; // 会話がまだ少ない場合は要約なし
+        
+        // 直近の5件を選択
+        const recentMessages = history.slice(-5).map(m => ({
+          role: m.role === "bot" ? "assistant" : m.role,
+          content: m.content
+        }));
+        
+        console.log("会話要約を取得します - 直近のメッセージ:", recentMessages.length, "件");
+        
+        // GAS経由でサーバー側の関数を呼び出し
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getConversationSummary(apiKey, recentMessages);
+        });
+        
+        console.log("会話要約結果:", data ? data.substring(0, 50) + "..." : "なし");
+        
+        return data || "";
+      } catch (err) {
+        console.error("会話要約エラー:", err);
+        return "";
+      }
+    }
+
+    // 追加：GPT-4oで次の物語展開を提案する関数
+    async function getNextPlotSuggestion(conversationSummary, userInput) {
+      const apiKey = dataStore.getItem("openai_api_key");
+      if (!apiKey) return "";
+      const characterPrompt = dataStore.getItem("character_prompt") || "";
+      
+      try {
+        // 直近のメッセージを取得
+        const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        const recentMessages = history.slice(-3).map(m => ({
+          role: m.role === "bot" ? "assistant" : m.role,
+          content: m.content
+        }));
+
+        console.log("次の物語展開を取得します:", 
+          "キャラ設定:", characterPrompt ? characterPrompt.substring(0, 30) + "..." : "なし", 
+          "要約:", conversationSummary ? conversationSummary.substring(0, 30) + "..." : "なし",
+          "メッセージ数:", recentMessages.length);
+
+        // GAS経由でサーバー側の関数を呼び出し
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler((result) => {
+              console.log("物語展開の結果を受信:", result ? result.substring(0, 30) + "..." : "なし");
+              resolve(result);
+            })
+            .withFailureHandler((error) => {
+              console.error("物語展開の取得に失敗:", error);
+              reject(error);
+            })
+            .getNextPlotSuggestion(apiKey, characterPrompt, conversationSummary, recentMessages);
+        });
+        
+        // GPT-4oのログを保存
+        try {
+          saveGpt4oLog({ 
+            type: "nextPlotSuggestion", 
+            summary: conversationSummary, 
+            input: userInput 
+          }, { suggestion: data });
+        } catch (e) {
+          console.warn("ログ保存エラー:", e);
+        }
+        
+        return data;
+      } catch (err) {
+        console.error("GPT-4o 物語展開予測エラー:", err);
+        return "";
+      }
+    }
+
+    // GPT-4oログを保存する関数
+    function saveGpt4oLog(request, response) {
+      try {
+        const now = new Date().toISOString();
+        const logs = JSON.parse(dataStore.getItem("gpt4o_logs") || "[]");
+        
+        // 最大20件まで保存
+        if (logs.length >= 20) {
+          logs.shift(); // 古いものから削除
+        }
+        
+        logs.push({ 
+          date: now, 
+          request, 
+          response,
+          suggestion: response?.choices?.[0]?.message?.content || ""
+        });
+        
+        dataStore.setItem("gpt4o_logs", JSON.stringify(logs));
+      } catch (e) {
+        console.error("GPT-4oログ保存エラー:", e);
+      }
+    }
+
+    // GPT-4oのログを取得する関数
+    function getGpt4oLogs() {
+      return JSON.parse(dataStore.getItem("gpt4o_logs") || "[]");
+    }
+
+    // メモリーカウンター制御用フラグ
+    window.allowMemoryIncrement = true;
+
+    function getMemoryCounter() {
+      return Number(dataStore.getItem("memory_counter") || "0");
+    }
+    
+    function incMemoryCounter() {
+      if (!window.allowMemoryIncrement) return getMemoryCounter();
+      let c = getMemoryCounter() + 1;
+      dataStore.setItem("memory_counter", c.toString());
+      return c;
+    }
+
+    // 長期記憶の最後の1件を削除
+    function removeLastMemory() {
+      let story = JSON.parse(dataStore.getItem("chat_story") || "[]");
+      if (story.length > 0) {
+        story.pop();
+        dataStore.setItem("chat_story", JSON.stringify(story));
+      }
+    } 
+
+    const emotionAnalysisPrompt = function(userMessage) {
+      // 感情パラメータの数値を取得
+      var trust = Number(dataStore.getItem("trust") || 0);
+      var affection = Number(dataStore.getItem("affection") || 0);
+      var friendship = Number(dataStore.getItem("friendship") || 0);
+      
+      // 感情パラメータを日本語ラベルに変換
+      var affectionLabel = convertAffection(affection);
+      var trustLabel = convertTrust(trust);
+      var friendshipLabel = convertFriendship(friendship);
+      
+      var prompt = "";
+      prompt += "【Emotion State Reflection Prompt】\n";
+      prompt += `好意: ${affectionLabel}／信頼: ${trustLabel}／友好: ${friendshipLabel}\n\n`;
+      prompt += "Reflect the character's current emotional state in your attitude, tone, and narrative naturally.\n";
+      prompt += "Do not include emotion labels or numeric values in output.\n\n";
+      
+      prompt += "【描写制限】\n";
+      prompt += "- Do not include information about the character's occupation, abilities, or social position in the narrative if the user has not yet learned it.\n";
+      prompt += "- Only describe elements that are naturally visible or perceivable from the user's point of view, such as appearance, behavior, attitude, or manner of speaking.\n";
+      prompt += "- Character background settings should be gradually revealed through speech or action. Do not disclose them directly in narrative text.\n\n";
+      prompt += "- Do not supplement or infer the user's character's inner thoughts, emotions, or intentions unless explicitly stated in the input.\n";
+      prompt += "- Even if the user's input contains narrative descriptions, do not infer or describe the user character's inner state beyond what is clearly expressed.\n";
+      prompt += "- Do not interpret or guess the user's character's intentions or emotions.\n\n";
+      
+      prompt += "【JSON Format Output Prompt】\n";
+      prompt += "Output in this exact JSON format:\n\n";
+      prompt += "- reply: your reply (or \"\" if longTerm or important is true)\n";
+      prompt += "- longTerm: true / false\n";
+      prompt += "- important: true / false\n";
+      prompt += "- memory: what to remember (or null)\n";
+      prompt += "- emotionDelta: changes to affection, trust, and friendship\n\n";
+      prompt += "If important is true, set +10 to +15 delta.\n";
+      prompt += "If false, keep emotion delta under +5.\n\n";
+      prompt += "【発言】\n「" + userMessage + "」";
+      
+      return prompt;
+    };
+
+    // 感情ランクに基づく関係性の説明を生成する関数
+    function getRankDescription(affectionRank, trustRank, friendshipRank) {
+      // 最も低いランクを基準にする
+      const ranks = [affectionRank, trustRank, friendshipRank].map(r => r.charCodeAt(0));
+      const worstRank = String.fromCharCode(Math.max(...ranks));
+      
+      if (worstRank === 'A' || worstRank === 'B') return "深い親密関係";
+      if (worstRank === 'C') return "仲良し";
+      if (worstRank === 'D') return "やや警戒";
+      if (worstRank === 'E') return "初対面";
+      if (worstRank === 'F') return "やや拒否的";
+      return "敵対的";
+    }
+
+    function toggleSettings() {
+      const s = document.getElementById("settings");
+      s.style.display = s.style.display === "none" ? "block" : "none";
+    }
+
+    function saveSettings() {
+      // APIキー
+      dataStore.setItem("openai_api_key", document.getElementById("apiKey").value);
+
+      // キャラ設定
+      const characterPrompt = document.getElementById("charPrompt").value;
+      dataStore.setItem("character_prompt", characterPrompt);
+
+      // ユーザー設定
+      dataStore.setItem("char_self", document.getElementById("charSelfSetting").value);
+
+      // ストーリーモード
+      dataStore.setItem("story_mode", document.getElementById("storyModeToggle").checked ? "1" : "0");
+
+      // 感情パラメータ初期化フラグ
+      const shouldResetEmotions = document.getElementById("resetEmotionToggle").checked;
+
+      // キャラクター設定が変更され、感情パラメータが未設定の場合は自動生成
+      if (characterPrompt) {
+        if (!dataStore.getItem("affection") || 
+            !dataStore.getItem("trust") || 
+            !dataStore.getItem("friendship")) {
+          // 初回設定時は無条件で初期化
+          generateInitialEmotionParams(characterPrompt, false);
+        } else if (shouldResetEmotions) {
+          // 再設定時は蓄積値を保持（フラグがONの場合）
+          generateInitialEmotionParams(characterPrompt, true);
+        }
+      }
+
+      // 変更を即時保存
+      dataStore.flushChanges();
+      
+      alert("設定を保存しました！");
+    }
+
+    // キャラクター設定に基づいて感情パラメータの初期値を自動生成する関数
+    async function generateInitialEmotionParams(characterProfile, shouldPreserveAccumulated = true) {
+      try {
+        const apiKey = dataStore.getItem("openai_api_key");
+        if (!apiKey) {
+          console.warn("APIキーが設定されていません");
+          return;
+        }
+        
+        // 蓄積値を計算（初期化フラグがONの場合のみ使用）
+        let accumulatedValues = { affection: 0, trust: 0, friendship: 0 };
+        if (shouldPreserveAccumulated) {
+          accumulatedValues = calculateAccumulatedValues();
+        }
+        
+        // 初期値生成用のプロンプト
+        const prompt = `
+以下はキャラクター設定です。この性格を分析し、適切な感情パラメータの初期値を設定してください。
+
+【キャラ設定】
+${characterProfile}
+
+【性格分類とパラメータ推奨値】
+以下の性格タイプからもっとも近いものを判断し、その値を設定してください：
+
+1. 冷淡／無口タイプ:
+   - affection（好意）: 150
+   - trust（信頼）: 200
+   - friendship（友好）: 150
+
+2. 丁寧／親切タイプ:
+   - affection（好意）: 350
+   - trust（信頼）: 400
+   - friendship（友好）: 300
+
+3. 人懐っこい／陽気タイプ:
+   - affection（好意）: 500
+   - trust（信頼）: 550
+   - friendship（友好）: 550
+
+4. ツンデレ系タイプ:
+   - affection（好意）: 200
+   - trust（信頼）: 250
+   - friendship（友好）: 200
+
+各タイプの特徴に部分的に当てはまる場合は、複数タイプの中間値を設定しても構いません。
+キャラクターの傾向を総合的に判断し、最も適した初期値を設定してください。
+
+以下の形式でJSONのみを出力してください：
+{
+  "personality_type": "判断した性格タイプ（上記1〜4のいずれか、または複合タイプ）",
+  "reasoning": "判断理由の簡潔な説明",
+  "affection": 数値（100〜550の範囲）,
+  "trust": 数値（150〜600の範囲）,
+  "friendship": 数値（100〜600の範囲）
+}`;
+        
+        // API呼び出し用のメッセージを構築
+        const messages = [
+          { role: "system", content: prompt },
+          { role: "user", content: "キャラクターの性格に基づいた感情パラメータの初期値を設定してください" }
+        ];
+        
+        // API呼び出し
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 200);
+        });
+        
+        if (result.error) {
+          console.error("感情パラメータ初期値生成エラー:", result.error);
+          setDefaultEmotionParams();
+          return;
+        }
+        
+        // 返答を取得してJSONを抽出
+        const response = result.choices[0].message.content.trim();
+        const match = response.match(/\{[\s\S]*\}/);
+        
+        if (match) {
+          try {
+            const parsedParams = JSON.parse(match[0]);
+            
+            // APIから取得した初期値
+            let initialAffection, initialTrust, initialFriendship;
+            
+            // 性格タイプに基づいて初期値を設定
+            if (parsedParams.personality_type) {
+              const defaults = getPersonalityTypeDefaults(parsedParams.personality_type);
+              initialAffection = defaults.affection;
+              initialTrust = defaults.trust;
+              initialFriendship = defaults.friendship;
+            } else {
+              // APIから返された個別の値がある場合はそれを使用
+              initialAffection = typeof parsedParams.affection === 'number' ? parsedParams.affection : 200;
+              initialTrust = typeof parsedParams.trust === 'number' ? parsedParams.trust : 250;
+              initialFriendship = typeof parsedParams.friendship === 'number' ? parsedParams.friendship : 200;
+            }
+            
+            // 初期値を別途保存
+            saveEmotionInitialValues(initialAffection, initialTrust, initialFriendship);
+            
+            // 初期値に蓄積値を加算（初期化フラグがONの場合）
+            if (shouldPreserveAccumulated) {
+              initialAffection += accumulatedValues.affection;
+              initialTrust += accumulatedValues.trust;
+              initialFriendship += accumulatedValues.friendship;
+              
+              console.log('感情値を再計算しました:', {
+                affection: initialAffection,
+                trust: initialTrust,
+                friendship: initialFriendship
+              });
+            }
+            
+            // 有効な値であれば保存（範囲を確認）
+            dataStore.setItem("affection", String(Math.max(0, Math.min(10000, initialAffection))));
+            dataStore.setItem("trust", String(Math.max(0, Math.min(10000, initialTrust))));
+            dataStore.setItem("friendship", String(Math.max(0, Math.min(10000, initialFriendship))));
+            
+            // 性格タイプと判断理由をログとして記録
+            console.log("キャラクター性格分析結果:", {
+              type: parsedParams.personality_type || "不明",
+              reason: parsedParams.reasoning || "理由なし",
+              values: {
+                affection: parsedParams.affection,
+                trust: parsedParams.trust,
+                friendship: parsedParams.friendship
+              }
+            });
+            
+            // 変更を即時保存
+            dataStore.flushChanges();
+            
+            // 感情パラメータの表示を更新
+            renderEmotionParams();
+          } catch (e) {
+            console.error("感情パラメータの解析エラー:", e);
+            setDefaultEmotionParams();
+          }
+        } else {
+          console.error("APIからの応答に有効なJSONが含まれていません");
+          setDefaultEmotionParams();
+        }
+      } catch (err) {
+        console.error("感情パラメータ初期値生成処理エラー:", err);
+        setDefaultEmotionParams();
+      }
+    }
+    
+    // デフォルトの感情パラメータを設定する
+    function setDefaultEmotionParams() {
+      setDefaultValue("affection", 200);
+      setDefaultValue("trust", 250);
+      setDefaultValue("friendship", 200);
+      
+      // デフォルト値も初期値として保存
+      saveEmotionInitialValues(200, 250, 200);
+    }
+    
+    // デフォルト値の設定（既存の値がある場合は上書きしない）
+    function setDefaultValue(key, value) {
+      if (!dataStore.getItem(key)) {
+        dataStore.setItem(key, String(value));
+      }
+    }
+
+    // 性格タイプごとの初期感情パラメータ値を取得する
+    function getPersonalityTypeDefaults(personalityType) {
+      const personalityDefaults = {
+        "冷淡／無口タイプ": {
+          "affection": 150,
+          "trust": 200,
+          "friendship": 150
+        },
+        "丁寧／親切タイプ": {
+          "affection": 350,
+          "trust": 400,
+          "friendship": 300
+        },
+        "人懐っこい／陽気タイプ": {
+          "affection": 500,
+          "trust": 550,
+          "friendship": 550
+        },
+        "ツンデレ系タイプ": {
+          "affection": 200,
+          "trust": 250,
+          "friendship": 200
+        }
+      };
+      
+      return personalityDefaults[personalityType] || {
+        "affection": 200,
+        "trust": 250,
+        "friendship": 200
+      };
+    }
+
+    function applyAvatar() {
+      try {
+        // まず現在のsrcを保存
+        const currentSrc = document.getElementById("character-bg").src;
+        console.log("現在の背景画像:", currentSrc);
+        
+        // 優先順位:
+        // 1. サーバーストレージからのデータ
+        // 2. ローカルストレージからのデータ
+        let avatarUrl = dataStore.getItem("avatar_url");
+        
+        // サーバーストレージにデータがない場合、localStorageから復元を試みる
+        if (!avatarUrl) {
+          console.log("サーバーストレージに画像がないため、ローカルストレージから復元を試みます");
+          avatarUrl = dataStore.getLocalItem("bgImageData");
+          
+          // ローカルストレージに画像があれば、それをサーバーストレージにも同期
+          if (avatarUrl) {
+            console.log("ローカルストレージから画像を復元しました");
+            dataStore.setItem("avatar_url", avatarUrl);
+            dataStore.flushChanges();
+          }
+        }
+        
+        if (avatarUrl) {
+          console.log("設定する背景画像:", avatarUrl.substring(0, 30) + "...");
+          
+          // 背景画像を設定
+          document.getElementById("character-bg").src = avatarUrl;
+          
+          // ローカルストレージにも保存（リロード対策）
+          dataStore.setLocalItem("bgImageData", avatarUrl);
+          
+          // 画像読み込みエラー処理の追加
+          document.getElementById("character-bg").onerror = function() {
+            console.warn("画像の読み込みに失敗しました。再試行します:", avatarUrl.substring(0, 30) + "...");
+            
+            // ローカルストレージからの復元を試みる
+            const localImage = dataStore.getLocalItem("bgImageData");
+            if (localImage && localImage !== avatarUrl) {
+              console.log("ローカルストレージから別の画像を復元します");
+              document.getElementById("character-bg").src = localImage;
+              return;
+            }
+            
+            // データが古い可能性があるため、サーバーから最新データを再取得
+            google.script.run
+              .withSuccessHandler(function(latestData) {
+                if (latestData) {
+                  console.log("サーバーから最新データを取得:", latestData);
+                  document.getElementById("character-bg").src = latestData;
+                  
+                  // キャッシュとローカルストレージを更新
+                  if (dataStore.cache) {
+                    dataStore.cache.avatar_url = latestData;
+                  }
+                  dataStore.setLocalItem("bgImageData", latestData);
+                  console.log("キャッシュとローカルストレージを更新しました");
+                }
+              })
+              .withFailureHandler(function(err) {
+                console.error("画像同期エラー:", err);
+              })
+              .getSingleUserData("avatar_url");
+          };
+        } else {
+          console.warn("画像データが見つかりません");
+        }
+      } catch (e) {
+        console.error("applyAvatar処理エラー:", e);
+      }
+    }
+
+    function saveMessage(role, content) {
+      if (role === "bot") role = "assistant";
+      
+      // 大きすぎるメッセージや不完全なJSONを保存しないよう処理
+      let safeContent = content;
+      
+      // content に JSON が含まれているかチェック
+      if (typeof content === "string" && content.includes('{') && content.includes('}')) {
+        // JSON形式を含む場合、中身を抽出して正しく保存
+        try {
+          // reply/responseプロパティを探す
+          const replyMatch = content.match(/"(reply|response)"\s*:\s*"([^"]*)"/);
+          if (replyMatch && replyMatch[2]) {
+            safeContent = replyMatch[2];
+          } else {
+            // JSONを取り除いてプレーンテキストにする
+            const textParts = content.split('{');
+            if (textParts.length > 0 && textParts[0].trim()) {
+              safeContent = textParts[0].trim();
+            }
+          }
+        } catch (e) {
+          console.warn("メッセージ保存前の処理でエラー:", e);
+        }
+      }
+      
+      // 保存する履歴
+      let history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      history.push({ role, content: safeContent, timestamp: new Date().toISOString() });
+      dataStore.setItem("chat_history", JSON.stringify(history));
+    }
+
+    function scrollToBottom() {
+      const el = document.getElementById("messages");
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function loadHistory() {
+      const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      const container = document.getElementById("messages");
+      container.innerHTML = ""; // ←これは初回限定でOK
+      history.forEach(m => {
+        container.innerHTML += `<div class="message ${m.role}"><div class="bubble">${m.content}</div></div>`;
+      });
+      setTimeout(scrollToBottom, 0);
+    }
+
+    // 短期記憶要約プロンプトを修正
+    const shortTermMemorySummaryPrompt = `
+以下はAIキャラとの過去の物語的な会話の要約です。  
+この内容と、新たな会話（ユーザーとキャラのやり取り）を踏まえ、300文字以内で会話の内容をまとめてください。  
+主にキャラの行動・表情・心理・空気感を重視し、セリフではなく地の文としてまとめてください。
+
+■過去の短期記憶：
+{shortMemory}
+
+■ユーザー発言：
+{userMessage}
+
+■キャラ返答：
+{lastReply}
+`;
+
+    // 直近会話要約用のプロンプト
+    const recentDialogueCompressPrompt = `
+以下はキャラクターとユーザーの直近の会話履歴です。
+この会話から「物語としての流れ・雰囲気・心情」が伝わるように、最大375文字程度に要約してください。
+
+小説風の三人称視点で記述し、必要に応じて簡潔なセリフを含めても構いません。
+ただし要約・圧縮を最優先し、冗長な表現は避けてください。
+
+特に以下の要素を意識して要約してください：
+- 場面の雰囲気や状況
+- キャラクターの感情や心理状態
+- 会話の主要なトピックや展開
+- 物語としての流れ
+
+■直近の会話：
+{recentDialogue}
+
+この会話をまとめた要約文を出力してください。
+`;
+
+    // 短期記憶要約関数を修正
+    async function summarizeShortTermMemory(lastReply, userMessage) {
+      try {
+        const apiKey = dataStore.getItem("openai_api_key");
+        if (!apiKey) {
+          console.warn("APIキーが設定されていません");
+          return null;
+        }
+        
+        // 既存の短期記憶を取得
+        const existingShortMemory = dataStore.getItem("short_term_memory") || "";
+        
+        // プロンプトを生成
+        const prompt = shortTermMemorySummaryPrompt
+          .replace("{lastReply}", lastReply)
+          .replace("{userMessage}", userMessage)
+          .replace("{shortMemory}", existingShortMemory ? `【短期記憶】：${existingShortMemory}` : "なし");
+        
+        // API呼び出し用のメッセージを構築
+        const messages = [
+          { role: "system", content: prompt },
+          { role: "user", content: "現在の会話状況を要約してください" }
+        ];
+        
+        // API呼び出し
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 150); // 短期記憶要約は150トークンで十分
+        });
+        
+        if (result.error) {
+          console.error("短期記憶要約エラー:", result.error);
+          return existingShortMemory; // エラー時は既存の短期記憶を返す
+        }
+        
+        // 返答を取得
+        let summary = result.choices[0].message.content.trim();
+        
+        // 300文字を超える場合はカット
+        if (summary.length > 300) {
+          // 最後の文の終わりで切る
+          const lastSentenceEnd = summary.lastIndexOf("。", 300) + 1;
+          if (lastSentenceEnd > 0) {
+            summary = summary.substring(0, lastSentenceEnd);
+          } else {
+            summary = summary.substring(0, 300);
+          }
+        }
+        
+        console.log("短期記憶を更新:", summary);
+        
+        // 短期記憶を保存
+        dataStore.setItem("short_term_memory", summary);
+        
+        return summary;
+      } catch (err) {
+        console.error("短期記憶要約処理エラー:", err);
+        return dataStore.getItem("short_term_memory") || ""; // エラー時は既存の短期記憶を返す
+      }
+    }
+
+    // 直近会話圧縮関数
+    async function compressRecentDialogue() {
+      try {
+        const apiKey = dataStore.getItem("openai_api_key");
+        if (!apiKey) {
+          console.warn("APIキーが設定されていません");
+          return null;
+        }
+        
+        // 直近の会話履歴を取得（最大4ターン）
+        const history = JSON.parse(dataStore.getItem("chat_history") || "[]").slice(-8);
+        if (history.length < 2) {
+          return null; // 十分な会話履歴がない場合
+        }
+        
+        // 会話履歴を整形して表示
+        let recentDialogue = "";
+        for (let i = 0; i < history.length; i++) {
+          const m = history[i];
+          const roleLabel = m.role === "user" ? "ユーザー" : "キャラクター";
+          recentDialogue += `【${roleLabel}】\n${m.content}\n\n`;
+        }
+        
+        // プロンプトを生成
+        const prompt = recentDialogueCompressPrompt.replace("{recentDialogue}", recentDialogue);
+        
+        // API呼び出し用のメッセージを構築
+        const messages = [
+          { role: "system", content: prompt },
+          { role: "user", content: "会話を要約してください" }
+        ];
+        
+        // API呼び出し
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 250); // 250トークン制限（約375文字）
+        });
+        
+        if (result.error) {
+          console.error("直近会話圧縮エラー:", result.error);
+          return null;
+        }
+        
+        // 返答を取得
+        let compressed = result.choices[0].message.content.trim();
+        
+        // 375文字を超える場合はカット
+        if (compressed.length > 375) {
+          // 最後の文の終わりで切る
+          const lastSentenceEnd = compressed.lastIndexOf("。", 375) + 1;
+          if (lastSentenceEnd > 0) {
+            compressed = compressed.substring(0, lastSentenceEnd);
+          } else {
+            compressed = compressed.substring(0, 375);
+          }
+        }
+        
+        console.log("直近会話を圧縮:", compressed);
+        
+        // 圧縮された会話を保存
+        dataStore.setItem("recent_dialogue_compressed", compressed);
+        
+        return compressed;
+      } catch (err) {
+        console.error("直近会話圧縮処理エラー:", err);
+        return null; // エラー時はnullを返す
+      }
+    }
+
+    // ストーリー構成パターン選択関数
+    function selectStoryStructurePattern() {
+      // 6種類の構成パターンとその出現確率
+      const patterns = [
+        { pattern: "地セ地", probability: 10 },
+        { pattern: "地セ地セ", probability: 12 },
+        { pattern: "地セ地セ地", probability: 30 },
+        { pattern: "地セ地セ地セ", probability: 16 },
+        { pattern: "セ地セ", probability: 16 },
+        { pattern: "セ地セ地", probability: 16 }
+      ];
+      
+      // 前回のパターンを取得
+      const lastPattern = dataStore.getItem("last_story_pattern") || "";
+      
+      // ランダム選択
+      const random = Math.random() * 100;
+      let cumulativeProbability = 0;
+      let selectedPattern = null;
+      
+      for (const item of patterns) {
+        cumulativeProbability += item.probability;
+        if (random <= cumulativeProbability) {
+          selectedPattern = item.pattern;
+          break;
+        }
+      }
+      
+      // 同じパターンが2回連続で選ばれた場合、50%の確率で再抽選
+      if (selectedPattern === lastPattern) {
+        if (Math.random() < 0.5) {
+          // 再抽選
+          const random2 = Math.random() * 100;
+          cumulativeProbability = 0;
+          
+          for (const item of patterns) {
+            cumulativeProbability += item.probability;
+            if (random2 <= cumulativeProbability) {
+              selectedPattern = item.pattern;
+              break;
+            }
+          }
+        }
+      }
+      
+      // 選択されたパターンを保存
+      dataStore.setItem("last_story_pattern", selectedPattern);
+      
+      return selectedPattern;
+    }
+
+    // buildMessages関数を修正して短期記憶を組み込む
+    function buildMessages(userMessage) {
+      // キャラ設定を構造化
+      const basePrompt = dataStore.getItem("character_prompt") || "";
+      
+      // 既知情報を先に取得（複数箇所で使用するため）
+      const knownFacts = getKnownFacts();
+      
+      // 次の展開ヒントを取得
+      const nextPlotHint = dataStore.getItem("next_plot_hint") || "";
+      const plotHintPrompt = nextPlotHint ? `NextPlotHint: ${nextPlotHint}` : "";
+      
+      // ストーリーモード追加
+      const isStoryMode = dataStore.getItem("story_mode") === "1";
+      const storyIntensity = dataStore.getItem("story_intensity") || "medium";
+      let storyModePrompt = "";
+      
+      if (isStoryMode) {
+        // 構成パターンを選択
+        const selectedPattern = selectStoryStructurePattern();
+        
+        // 基本ストーリーモードプロンプト
+        storyModePrompt = `
+【Story Mode Prompt】
+
+You are a character in a fictional story.  
+Respond using third-person narration: 3–5 narrative sentences + 1–2 lines of quoted dialogue.  
+Narration should describe your actions, expressions, mood, and surroundings.  
+Dialogue should reflect your personality.  
+Always include scene context — never write dialogue alone.
+
+Length: Aim for 300–400 characters total. Do not go below 200.  
+Avoid excessive brevity or vague statements.
+
+Do not reuse or repeat user inputs.  
+Do not describe or interpret the user's character's actions, thoughts, emotions, or reactions unless clearly stated in the input.  
+You are not allowed to imagine or guess anything about the user's character.
+
+The user is invisible to you unless they explicitly appear in the input.
+
+%%text%% indicates a directive to the AI — interpret it silently, do not mention or echo it.
+
+【重要：言語指示】
+必ず日本語で応答してください。ナレーション（地の文）とセリフの両方を日本語で出力してください。
+英語は一切使用しないでください。自然な日本語の文章とセリフで表現してください。
+
+【文章構成指示】
+const pattern = "${selectedPattern}";
+const structureNote = \`"地" = narration, "セ" = dialogue in quotes. Use the following structure: \${pattern}\`;
+必ずこの構成パターンに従って文章を構成してください。`;
+
+        // ストーリーリードの確率を追加
+        const leadProbability = dataStore.getItem("story_lead_probability") || "75";
+        storyModePrompt += `
+
+In about ${leadProbability}% of replies, your character should lead the story forward: suggest new actions, introduce elements, or deepen the scene — as long as it fits your personality.`;
+
+        // 濃度に応じたプロンプト追加（簡潔に）
+        if (storyIntensity === "medium") {
+          storyModePrompt += `
+Medium intensity: 300-400 characters total.
+3-5 narrative sentences + 1-2 dialogue lines.
+Focus on concise, evocative descriptions.`;
+        } else if (storyIntensity === "high") {
+          storyModePrompt += `
+High intensity: 450-600 characters total.
+5-7 narrative sentences + 2-3 dialogue lines.
+Use literary descriptions with vivid imagery.
+Maintain proper JSON structure with this longer format.`;
+        }
+
+        // 既知情報に「名前」が含まれているかチェックし、適切な指示を追加
+        if (knownFacts && knownFacts.includes("名前")) {
+          // 名前が含まれている場合
+          storyModePrompt += `
+
+【Character naming】
+The character's name may be used naturally in both narration and dialogue.`;
+        } else {
+          // 名前が含まれていない場合
+          storyModePrompt += `
+
+【Character naming】
+Since the character's name has not been revealed, do not include it in either narration or dialogue.
+Instead, use indirect expressions such as "the person," "he," "she," "the young man," or "the girl."`;
+        }
+      }
+      
+      const structuredPrompt = `
+【キャラ設定】
+${basePrompt}
+${storyModePrompt}
+`.trim();
+
+      const selfSetting = dataStore.getItem("char_self") || "";
+      const emotionPrompt = emotionAnalysisPrompt(userMessage);
+
+      // 短期記憶の取得
+      const shortMemory = dataStore.getItem("short_term_memory") || "";
+      
+      // 直近会話圧縮の取得
+      const recentDialogueCompressed = dataStore.getItem("recent_dialogue_compressed") || "";
+      
+      // ベースとなるシステムプロンプト
+      const base = [
+        { role: "system", content: structuredPrompt },
+        ...(selfSetting ? [{ role: "system", content: `ユーザーの設定情報：${selfSetting}` }] : []),
+        { role: "system", content: emotionPrompt },
+        ...(plotHintPrompt ? [{ role: "system", content: plotHintPrompt }] : []) // 追加：物語展開のヒントを追加
+      ];
+      
+      // 既知情報があれば追加
+      if (knownFacts) {
+        base.push({
+          role: "system",
+          content: `Known facts (allowed in narration): ${knownFacts}
+
+Only include these facts in narration. For any other character background, abilities, or occupation, do not describe them in narration. Instead, reveal such information gradually through dialogue, actions, or interactions when appropriate.`
+        });
+      }
+      
+      // 短期記憶と直近会話圧縮を追加（メインプロンプトの直後に配置）
+      if (shortMemory) {
+        base.push({ 
+          role: "system", 
+          content: `【短期記憶】\n${shortMemory}`
+        });
+      }
+      
+      if (recentDialogueCompressed) {
+        base.push({
+          role: "system",
+          content: `【直近会話要約】\n${recentDialogueCompressed}`
+        });
+      }
+
+      // ユーザープロンプトオーバーライドがある場合は追加
+      if (window.userPromptOverride) {
+        base.push({ role: "user", content: `【再生成時の指示】\n${window.userPromptOverride}` });
+      }
+
+      // 直近の会話履歴（トークン節約のため1往復のみに制限）
+      const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      const recent = history.slice(-2).map(m => ({
+        role: m.role === "bot" ? "assistant" : m.role,
+        content: m.content
+      }));
+
+      // 長期記憶からの関連情報
+      const keywords = JSON.parse(dataStore.getItem("last_keywords") || "[]");
+      const relevant = extractRelevantMemoriesByKeywords(keywords);
+      const memoryMessages = relevant.map(m => ({ role: "system", content: m }));
+
+      return base.concat(memoryMessages).concat(recent).concat({ role: "user", content: userMessage });
+    }
+
+    function saveToChatStory(newMemory) {
+      let story = JSON.parse(dataStore.getItem("chat_story") || "[]");
+      if (!newMemory || typeof newMemory !== "string" || newMemory === "null") return;
+      if (story.includes(newMemory)) return;
+      story.push(newMemory);
+      dataStore.setItem("chat_story", JSON.stringify(story));
+    }
+
+    async function summarizeMemoryFromRecentChats() {
+      const apiKey = dataStore.getItem("openai_api_key");
+      if (!apiKey) {
+        console.warn("APIキーが設定されていません");
+        return;
+      }
+      
+      const history = JSON.parse(dataStore.getItem("chat_history") || "[]").slice(-10);
+      const story = (JSON.parse(dataStore.getItem("chat_story") || "[]")).map(m => ({
+        role: "system",
+        content: m
+      }));
+
+      const prompt = `
+以下はキャラクターとユーザーの直近の会話履歴です。
+
+この会話から、キャラクターとして「性格・好み・行動傾向・人間関係」など、
+長期的に保持すべき知識・特徴が含まれていれば、それを簡潔に1〜2文で要約してください。
+記憶すべき要点がなければ "なし" と返してください。
+
+フォーマットはJSONで以下の形式にしてください：
+
+{
+  "memory": "記憶すべき情報（なければ null）"
+}`;
+
+      try {
+        const messages = [
+          { role: "system", content: prompt },
+          ...story,
+          ...history.map(m => ({
+            role: m.role === "bot" ? "assistant" : m.role,
+            content: m.content
+          }))
+        ];
+        
+        const result = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 1800); // トークン制限を1800に設定
+        });
+
+        if (result.error) {
+          console.error("APIエラー:", result.error);
+          return;
+        }
+
+        const reply = result.choices[0].message.content;
+        const match = reply.match(/\{[\s\S]*?\}/);
+        if (!match) return;
+        
+        const parsed = JSON.parse(match[0]);
+        if (parsed.memory && parsed.memory !== "null" && parsed.memory !== "なし") {
+          saveToChatStory(parsed.memory);
+        }
+      } catch (e) {
+        console.warn("要約失敗:", e);
+      }
+    }
+
+    async function sendMessage(isRegenMode = false) {
+      const input = document.getElementById("userInput");
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      if (msg.startsWith("/overwrite ")) {
+        await handleOverwriteCommand(msg.slice(11));
+        return;
+      }
+      if (msg.startsWith("/compressmemory")) {
+        await handleCompressMemoryCommand();
+        return;
+      }
+
+      // 再生成モードでない場合、GPT-4oから物語展開の提案を取得
+      if (!isRegenMode) {
+        try {
+          // 会話の要約を取得
+          const conversationSummary = await getConversationSummary();
+          // GPT-4oから次の展開案を取得
+          console.log("GPT-4o展開案取得開始");
+          const nextPlotSuggestion = await getNextPlotSuggestion(conversationSummary, msg);
+          if (nextPlotSuggestion) {
+            console.log("GPT-4o物語展開提案:", nextPlotSuggestion);
+            dataStore.setItem("next_plot_hint", nextPlotSuggestion);
+          } else {
+            console.warn("GPT-4oからの提案が空でした");
+          }
+        } catch (err) {
+          console.error("GPT-4o展開提案の取得に失敗:", err);
+          // エラーを表示しない（UI上で気づかれないように）
+        }
+      } else {
+        // 再生成モードでは、保存されていたヒントを再利用
+        const regenPlotHint = dataStore.getItem("regen_plot_hint");
+        if (regenPlotHint) {
+          dataStore.setItem("next_plot_hint", regenPlotHint);
+        }
+      }
+
+      // 再生成モードでない場合のみユーザー発言を表示
+      if (!isRegenMode) {
+        document.getElementById("messages").innerHTML += `
+    <div class="message user">
+      <div class="bubble">${msg}</div>
+    </div>`;
+        scrollToBottom();
+
+        // 会話履歴に保存（再生成時はスキップ）
+        saveMessage("user", msg);
+      }
+
+      // ✅③ 入力欄クリア
+      input.value = "";
+
+      // ...以下 GPT送信＆返答処理
+      const count = incMemoryCounter();
+      const useMemoryCheck = count % 10 === 0;
+      const apiKey = dataStore.getItem("openai_api_key");
+      
+      if (!apiKey) {
+        document.getElementById("messages").innerHTML += `
+          <div class="message assistant">
+            <div class="bubble">⚠️ APIキーが設定されていません。設定画面から入力してください。</div>
+          </div>`;
+        scrollToBottom();
+        return;
+      }
+
+      const typingId = "bot-typing";
+      document.getElementById("messages").innerHTML += `
+    <div class="message assistant" id="${typingId}">
+      <div class="bubble">入力中です...</div>
+    </div>`;
+      scrollToBottom();
+
+      const messages = buildMessages(msg);
+
+      try {
+        // GAS経由でAPIを呼び出し
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 1800); // トークン制限を1800に設定
+        });
+        
+        console.log('API Response:', data); // デバッグ用
+        
+        // API応答を保存（追加）
+        dataStore.setItem("last_api_response", JSON.stringify(data));
+        
+        // 使用済みのプロットヒントをクリア
+        dataStore.removeItem("next_plot_hint");
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // トークン制限による切断を検出（finish_reason="length"）
+        const isTruncated = data.choices[0].finish_reason === "length";
+        
+        let replyRaw = data.choices[0].message.content.trim();
+        console.log('Raw Reply:', replyRaw); // デバッグ用
+
+        // 🧼 入力中表示削除
+        document.getElementById(typingId)?.remove();
+
+        // --- 1回目のパース処理 ---
+        let parsed;
+        try {
+          // JSONの部分を抽出（複数行対応）- 改善版
+          let jsonStr = "";
+          
+          // JSONオブジェクトを探す - 正規表現を強化
+          const jsonMatch = replyRaw.match(/\{[\s\S]*?\}/g);
+          if (jsonMatch && jsonMatch.length > 0) {
+            // 最長のJSONを使用（最も完全な形式である可能性が高い）
+            jsonStr = jsonMatch.reduce((a, b) => a.length > b.length ? a : b);
+          console.log('Extracted JSON:', jsonStr); // デバッグ用
+          
+            try {
+          parsed = JSON.parse(jsonStr);
+            } catch (e) {
+              console.warn("最初のJSON解析に失敗、修復を試みます:", e);
+              
+              // 不完全なJSONの修復を試みる
+              if (jsonStr.includes('"emotionDelta": {') && !jsonStr.includes('}}}')) {
+                // emotionDeltaオブジェクトが閉じられていない場合
+                
+                // 足りない閉じ括弧の数を推定
+                let openBraces = (jsonStr.match(/\{/g) || []).length;
+                let closeBraces = (jsonStr.match(/\}/g) || []).length;
+                let missingBraces = openBraces - closeBraces;
+                
+                // 足りない閉じ括弧を追加
+                let fixedJson = jsonStr;
+                for (let i = 0; i < missingBraces; i++) {
+                  fixedJson += '}';
+                }
+                
+                console.log('修復したJSON:', fixedJson);
+                try {
+                  parsed = JSON.parse(fixedJson);
+                } catch (innerErr) {
+                  console.warn("括弧補完修復に失敗:", innerErr);
+                  
+                  // emotionDelta の各プロパティが存在するが値が欠けている場合
+                  if (jsonStr.includes('"affection":') && jsonStr.includes('"trust":')) {
+                    // 手動で emotionDelta オブジェクトを構築
+                    const affectionMatch = jsonStr.match(/"affection":\s*(\d+)/);
+                    const trustMatch = jsonStr.match(/"trust":\s*(\d+)/);
+                    const friendshipMatch = jsonStr.match(/"friendship":\s*(\d+)/);
+                    
+                    // 基本的な構造を構築
+                    const manualObj = {
+                      reply: "",
+                      longTerm: false,
+                      important: false,
+                      memory: null,
+                      emotionDelta: {
+                        affection: affectionMatch ? parseInt(affectionMatch[1]) : 5,
+                        trust: trustMatch ? parseInt(trustMatch[1]) : 5,
+                        friendship: friendshipMatch ? parseInt(friendshipMatch[1]) : 5
+                      }
+                    };
+                    
+                    // replyを抽出
+                    const replyMatch = jsonStr.match(/"reply":\s*"([^"]*)"/);
+                    if (replyMatch && replyMatch[1]) {
+                      manualObj.reply = replyMatch[1];
+                    }
+                    
+                    parsed = manualObj;
+                  }
+                }
+              } else if (jsonStr.includes('"reply": "') && !jsonStr.includes('"}')) {
+                // reply部分が閉じられていない場合
+                const replyMatch = jsonStr.match(/"reply":\s*"([^"]*)$/);
+                if (replyMatch) {
+                  // 閉じ括弧を追加
+                  const fixedJson = jsonStr + '"}';
+                  console.log('修復したJSON (reply):', fixedJson);
+                  try {
+                    parsed = JSON.parse(fixedJson);
+                  } catch (innerErr) {
+                    // 追加の修復が必要な場合
+                    const moreFixedJson = fixedJson + '}';
+                    console.log('追加修復したJSON:', moreFixedJson);
+                    try {
+                      parsed = JSON.parse(moreFixedJson);
+                    } catch (deepErr) {
+                      // 手動でオブジェクト構築
+                      parsed = {
+                        reply: replyMatch[1],
+                        longTerm: false,
+                        important: false,
+                        memory: null,
+                        emotionDelta: { affection: 5, trust: 5, friendship: 5 }
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // トークン制限による切断を処理（emotionDelta が不完全な場合）
+          if (isTruncated && (!parsed || !parsed.emotionDelta || 
+              typeof parsed.emotionDelta !== 'object' ||
+              parsed.emotionDelta.affection === undefined)) {
+            
+            console.log('トークン制限による切断を検出、手動で構築します');
+            
+            // replyを抽出
+            let extractedReply = "";
+            if (parsed && parsed.reply) {
+              extractedReply = parsed.reply;
+            } else {
+              const replyMatch = replyRaw.match(/"reply":\s*"([^"]*)(?:"|$)/);
+              if (replyMatch && replyMatch[1]) {
+                extractedReply = replyMatch[1];
+              } else {
+                // JSON形式でないテキストを使用
+                extractedReply = replyRaw.substring(0, 200);
+              }
+            }
+            
+            // オブジェクトを再構築（emotionDeltaにはフォールバック値として5を使用）
+            parsed = {
+              reply: extractedReply,
+              longTerm: false,
+              important: false,
+              memory: null,
+              emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値：APIからの応答が得られない場合に使用
+            };
+          }
+          
+          console.log("🧠 パース結果：", parsed);
+
+          // 必要なプロパティの存在チェック
+          if (!parsed || (!parsed.reply && !parsed.response)) {
+            // JSONが見つからない、または必要なプロパティがない場合
+            
+            // トークン制限による切断の場合
+            if (isTruncated) {
+              // reply部分を抽出して使用
+              const replyMatch = replyRaw.match(/"reply":\s*"([^"]*)(?:"|$)/);
+              if (replyMatch) {
+                const extractedText = replyMatch[1];
+                parsed = {
+                  reply: extractedText + "...", // 省略記号を追加
+                  longTerm: false,
+                  important: false,
+                  memory: null,
+                  emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値：APIからの応答が得られない場合に使用
+                };
+              } else {
+                // JSON形式でないテキストをそのまま使用
+                parsed = {
+                  reply: replyRaw.substring(0, 200) + "...",
+                  longTerm: false,
+                  important: false,
+                  memory: null,
+                  emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値
+                };
+              }
+            } else {
+              // 生のテキストをそのまま表示する場合
+              const plainText = replyRaw.replace(/[\{\}"]/g, "")
+                               .replace(/reply:/, "")
+                               .replace(/longTerm:.*/, "")
+                               .trim();
+              
+              parsed = {
+                reply: plainText || "応答を処理できませんでした",
+                longTerm: false,
+                important: false,
+                memory: null,
+                emotionDelta: { affection: 0, trust: 0, friendship: 0 } // エラー時はパラメータ変動なし
+              };
+            }
+          }
+
+          // responseプロパティがある場合はreplyにコピー
+          if (parsed.response && !parsed.reply) {
+            parsed.reply = parsed.response;
+          }
+          
+          // トークン制限による切断の場合、末尾に省略記号を追加
+          if (isTruncated && parsed.reply && !parsed.reply.endsWith("...")) {
+            parsed.reply = parsed.reply + "...";
+          }
+
+          // 二重引用符を日本語の引用符に置換
+          if (parsed.reply) {
+            parsed.reply = parsed.reply.replace(/"([^"]*)"/g, '「$1」');
+          }
+
+        } catch (e) {
+          console.error("JSON解析エラー:", e);
+          console.error("解析対象テキスト:", replyRaw);
+          
+          // エラーログに保存
+          errorLogger.logError(e, {
+            apiResponse: data,
+            rawResponse: replyRaw,
+            userMessage: msg,
+            memoryCheck: useMemoryCheck,
+            isTruncated: isTruncated
+          });
+          
+          // エラー時のフォールバック処理 - テキスト形式から抽出を試みる
+          let cleanText = replyRaw;
+          
+          // トークン制限による切断の場合
+          if (isTruncated) {
+            // できるだけ有用なテキストを抽出
+            if (replyRaw.includes('"reply": "')) {
+              const replyMatch = replyRaw.match(/"reply": "([^"]*)$/);
+              if (replyMatch) {
+                cleanText = replyMatch[1] + "...";
+              }
+            }
+          } 
+          // JSON形式っぽい部分があれば除去
+          else if (replyRaw.includes('{') && replyRaw.includes('}')) {
+            // JSONらしき部分を取り除いて、純粋なテキスト部分を抽出
+            const textParts = replyRaw.split('{');
+            if (textParts.length > 0 && textParts[0].trim()) {
+              cleanText = textParts[0].trim();
+            } else if (replyRaw.includes('"reply":')) {
+              // reply部分を抽出
+              const replyMatch = replyRaw.match(/"reply"\s*:\s*"([^"]*)"/);
+              if (replyMatch && replyMatch[1]) {
+                cleanText = replyMatch[1];
+              }
+            }
+          }
+          
+          // フォールバック用のオブジェクト
+          parsed = {
+            reply: cleanText,
+            longTerm: false,
+            important: false,
+            memory: null,
+            emotionDelta: { affection: 0, trust: 0, friendship: 0 }
+          };
+
+          // エラーメッセージを表示するのは、抽出したテキストが元のreplyRawとほぼ同じ場合のみ
+          // テキスト抽出に成功した場合はエラーメッセージを表示しない
+          if (isDebugMode() && (cleanText === replyRaw || cleanText.length < 20)) {
+            document.getElementById("messages").innerHTML += `
+              <div class="message assistant" style="opacity: 0.5;">
+                <div class="bubble" style="background: rgba(255,0,0,0.1);">
+                  ⚠️ 応答の解析に失敗しました：${e.message}<br>
+                  <small>開発者向け：コンソールを確認してください</small>
+                </div>
+              </div>`;
+          }
+        }
+
+        // トークン使用量を記録
+        if (data.usage && data.usage.total_tokens) {
+          // 最新のトークン使用量として保存（データビューア用）
+          dataStore.setItem("last_token_usage", JSON.stringify({
+            prompt_tokens: data.usage.prompt_tokens || 0,
+            completion_tokens: data.usage.completion_tokens || 0,
+            total_tokens: data.usage.total_tokens || 0,
+            timestamp: new Date().toISOString()
+          }));
+          
+          // 集計用のトークン使用量も保存
+          tokenTracker.saveTokenUsage(data.usage.total_tokens);
+          
+          // 変更を即時保存
+          dataStore.flushChanges();
+          
+          if (isDebugMode()) {
+            updateTokenUsageDisplay();
+          }
+        }
+
+        // --- 感情パラメタ更新と保存 ---
+        // 感情変動を保存（再送信時の相殺用）
+        if (parsed.emotionDelta && typeof parsed.emotionDelta === 'object') {
+          // スケーリングされた感情変動を計算
+          const scaledEmotionDelta = {
+            affection: 0,
+            trust: 0,
+            friendship: 0
+          };
+          
+          // 各感情パラメータのスケーリング
+          if (typeof parsed.emotionDelta.affection === 'number') {
+            scaledEmotionDelta.affection = scaleEmotionValue(parsed.emotionDelta.affection);
+          }
+          if (typeof parsed.emotionDelta.trust === 'number') {
+            scaledEmotionDelta.trust = scaleEmotionValue(parsed.emotionDelta.trust);
+          }
+          if (typeof parsed.emotionDelta.friendship === 'number') {
+            scaledEmotionDelta.friendship = scaleEmotionValue(parsed.emotionDelta.friendship);
+          }
+          
+          // スケーリング後の値をlast_emotion_deltaに保存
+          dataStore.setItem("last_emotion_delta", JSON.stringify(scaledEmotionDelta));
+          
+          // 感情パラメタ更新
+          if (typeof parsed.emotionDelta.affection === 'number') {
+            updateParam("affection", parsed.emotionDelta.affection);
+          }
+          if (typeof parsed.emotionDelta.trust === 'number') {
+            updateParam("trust", parsed.emotionDelta.trust);
+          }
+          if (typeof parsed.emotionDelta.friendship === 'number') {
+            updateParam("friendship", parsed.emotionDelta.friendship);
+          }
+        } else {
+          console.warn("emotionDeltaが不正な形式です:", parsed.emotionDelta);
+          dataStore.setItem("last_emotion_delta", JSON.stringify({
+            affection: 0,
+            trust: 0,
+            friendship: 0
+          }));
+        }
+
+        // --- 長期記憶保存 ---
+        if (parsed.longTerm && parsed.memory && parsed.memory !== "null") {
+          saveToChatStory(parsed.memory);
+        }
+
+        // --- 表示（1回だけ） ---
+        let safeResponse = typeof parsed.reply === "string" && parsed.reply.trim()
+          ? parsed.reply
+          : "（応答内容が取得できませんでした）";
+
+        // 文章が途中で切れていないか確認 - トークン制限で切れた場合のみ処理
+        if (isTruncated && !safeResponse.endsWith('...')) {
+          // トークン制限による切断の場合のみ、省略記号を追加
+          safeResponse = safeResponse + "...";
+        }
+        // 注：その他の文末判定ロジックは省略（UIの制限による切り詰めを防止）
+        
+        // 画面にキャラ返答を表示
+        document.getElementById("messages").innerHTML += `
+        <div class="message assistant">
+          <div class="bubble">${safeResponse}</div>
+        </div>`;
+        scrollToBottom();
+
+        // 会話履歴に保存 - 生の応答ではなく、抽出済みの安全なテキストを保存
+        saveMessage("assistant", safeResponse);
+
+        // 入力欄にフォーカスを戻す
+        document.getElementById("userInput").focus();
+
+        // 短期記憶の更新（非同期で実行）- ユーザーメッセージも引数に追加
+        if (!isRegenMode) {
+          // バックグラウンドで短期記憶を更新
+          summarizeShortTermMemory(safeResponse, msg).catch(err => {
+            console.error("短期記憶更新エラー:", err);
+          });
+          
+          // 直近会話圧縮も更新
+          compressRecentDialogue().catch(err => {
+            console.error("直近会話圧縮エラー:", err);
+          });
+        }
+
+        // --- useMemoryCheck時の追加処理（表示しない） ---
+        if (useMemoryCheck && !isRegenMode) {  // 再生成モード時はスキップ
+          try {
+            // 念のため再パースしても表示はしない（表示済み）
+            const match = replyRaw.match(/\{[\s\S]*\}/);
+            const debugParsed = match ? JSON.parse(match[0]) : JSON.parse(replyRaw);
+
+            // memoryとkeywordsのみ再処理
+            if (
+              (debugParsed.longTerm || debugParsed.important) &&
+              debugParsed.memory &&
+              debugParsed.memory !== "null"
+            ) {
+              saveToChatStory(debugParsed.memory);
+            }
+
+            dataStore.setItem("last_keywords", JSON.stringify(debugParsed.keywords || []));
+          } catch (err) {
+            console.warn("useMemoryCheck用再パース失敗:", err);
+          }
+
+          // 💭会話内容のまとめ（再生成モード時はスキップ）
+          await summarizeMemoryFromRecentChats();
+        }
+        
+        // 最後に送信したプロンプト全体を保存
+        dataStore.setItem("last_prompt_content", JSON.stringify(messages.map(m => ({
+          role: m.role,
+          content: m.content
+        }))));
+
+      } catch (err) {
+        console.error("API通信エラー:", err);
+        document.getElementById(typingId)?.remove();
+        
+        // エラーログに保存
+        errorLogger.logError(err, {
+          userMessage: msg,
+          memoryCheck: useMemoryCheck
+        });
+        
+        document.getElementById("messages").innerHTML += `<div class="message assistant"><div class="bubble">⚠️ エラー: ${err.message}</div></div>`;
+        scrollToBottom();
+      }
+    }
+
+    async function handleOverwriteCommand(commandText) {
+      const apiKey = dataStore.getItem("openai_api_key");
+      const story = JSON.parse(dataStore.getItem("chat_story") || "[]");
+
+      // 🔔 一時表示（記憶更新中）
+      // ユニークIDを生成（タイムスタンプ方式）
+      const tempId = "mem-update-temp-" + Date.now();
+
+      // 表示
+      document.getElementById("messages").innerHTML += `
+    <div class="message assistant" id="${tempId}">
+      <div class="bubble">💭 記憶を更新中です...</div>
+    </div>`;
+      scrollToBottom();
+
+      const prompt = `
+あなたはキャラクターの記憶を管理するAIです。
+以下の記憶リスト（配列）をもとに、ユーザーから与えられた指示に従って
+修正が必要な記憶を更新・書き換えてください。
+
+【ユーザーの指示】
+${commandText}
+
+【現在の記憶】
+${JSON.stringify(story, null, 2)}
+
+【出力形式】
+["修正済みの記憶1", "記憶2", "記憶3", ...]`;
+
+      try {
+        const messages = [{ role: "system", content: prompt }];
+        
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.5, 300);
+        });
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        const reply = data.choices[0].message.content.trim();
+        const match = reply.match(/\[.*\]/s);
+        if (!match) throw new Error("JSON形式で返ってきませんでした");
+        const updated = JSON.parse(match[0]);
+        if (!Array.isArray(updated)) throw new Error("形式が不正です");
+
+        dataStore.setItem("chat_story", JSON.stringify(updated));
+        document.getElementById(tempId).innerHTML = `<div class="bubble">✅ 記憶を更新しました。</div>`;
+        scrollToBottom();
+      } catch (err) {
+        console.error("overwrite失敗:", err);
+        document.getElementById(tempId).innerHTML = `<div class="bubble">⚠️ 記憶の更新に失敗しました: ${err.message}</div>`;
+        scrollToBottom();
+      }
+    }
+
+    // keywordsから記憶抽出する関数（JS側）
+    function extractRelevantMemoriesByKeywords(keywords) {
+      const story = JSON.parse(dataStore.getItem("chat_story") || "[]");
+      if (!Array.isArray(story) || !Array.isArray(keywords)) return [];
+
+      return story.filter(m =>
+        keywords.some(k => typeof m === "string" && m.toLowerCase().includes(k))
+      );
+    }
+
+    //長期記憶圧縮処理関数
+    async function handleCompressMemoryCommand() {
+      const apiKey = dataStore.getItem("openai_api_key");
+      const story = JSON.parse(dataStore.getItem("chat_story") || "[]");
+      if (!story.length) {
+        alert("長期記憶がまだありません！");
+        return;
+      }
+
+      // 💬 UI表示：要約中…
+      const compressId = "compress-indicator";
+      document.getElementById("messages").innerHTML += `
+    <div class="message assistant" id="${compressId}">
+      <div class="bubble">🧠 要約中です...</div>
+    </div>`;
+      scrollToBottom();
+
+      try {
+        const messages = [
+          { role: "system", content: compressPrompt },
+          { role: "user", content: story.join("\n") }
+        ];
+        
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.5, 200);
+        });
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        const reply = data.choices[0].message.content;
+        const match = reply.match(/\{[\s\S]*?\}/);
+        if (!match) throw new Error("JSONが見つかりません");
+
+        const parsed = JSON.parse(match[0]);
+        if (parsed.summary && typeof parsed.summary === "string") {
+          // 🔄 保存し直し
+          dataStore.setItem("chat_story", JSON.stringify([parsed.summary]));
+          document.getElementById(compressId).innerHTML = `<div class="bubble">✅ 要約完了：<br>${parsed.summary}</div>`;
+        } else {
+          throw new Error("summaryが空です");
+        }
+
+      } catch (e) {
+        console.warn("圧縮失敗:", e);
+        document.getElementById(compressId).innerHTML = `<div class="bubble">⚠️ 要約に失敗しました…<br>${e.message}</div>`;
+      }
+    }
+
+    function resetCharacterData() {
+      // この関数は使用しないため削除
+    }
+    
+    function resetCharacterDataClientOnly() {
+      if (!confirm("本当にキャラデータを初期化しますか？（会話履歴・記憶・感情パラメタ・キャラ設定）")) return;
+
+      // APIキーを保存しておく
+      const apiKey = dataStore.getItem("openai_api_key");
+      
+      // リセット対象のキーを特定（character_promptも含める）
+      const resetKeys = [
+        "chat_history", "chat_story", "memory_counter", "last_keywords", 
+        "char_name", "char_personality", "character_prompt", "char_self",
+        "affection", "trust", "friendship", "last_emotion_delta",
+        "story_mode", "avatar_url", "short_term_memory", "known_facts", "recent_dialogue_compressed"
+      ];
+      
+      // 削除処理の完了を追跡
+      let deleteCount = 0;
+      const totalKeys = resetKeys.length;
+      
+      // キャッシュと実際のデータストアの両方をクリア
+      resetKeys.forEach(key => {
+        // キャッシュをクリア
+        if (dataStore.cache) {
+          dataStore.cache[key] = null;
+        }
+        // データストアから削除（removeItemを使用）
+        dataStore.removeItem(key);
+        deleteCount++;
+      });
+      
+      // chat_storyは空の配列として再初期化（nullではなく[]）
+      dataStore.setItem("chat_story", "[]");
+      if (dataStore.cache) {
+        dataStore.cache["chat_story"] = "[]";
+      }
+      
+      // APIキーを再設定
+      if (apiKey) {
+        dataStore.setItem("openai_api_key", apiKey);
+      }
+      
+      // 削除完了を待ってからUI更新
+      setTimeout(() => {
+        // UI更新
+        updateUIAfterReset();
+        
+        // 削除完了メッセージ
+        alert("キャラデータをリセットしました！\n\nもし古いデータが表示される場合は、ブラウザを再読み込みしてください。");
+        
+        // ページリロードの確認
+        if (confirm("確実にデータをリセットするため、ページを再読み込みしますか？")) {
+          location.reload();
+        }
+      }, 1000); // 1秒待ってから処理
+    }
+    
+    // リセット後のUI更新を共通化
+    function updateUIAfterReset() {
+      // メッセージ欄をクリア
+      document.getElementById("messages").innerHTML = "";
+      
+      // キャラクター設定を初期値にリセット
+      document.getElementById("charPrompt").value = "名前：性別、特徴";
+      
+      // ユーザー設定も保持
+      const savedCharSelf = dataStore.getItem("char_self");
+      if (savedCharSelf) {
+        document.getElementById("charSelfSetting").value = savedCharSelf;
+      } else {
+        document.getElementById("charSelfSetting").value = "";
+      }
+      
+      // ストーリーモードの状態を保持
+      const storyMode = dataStore.getItem("story_mode") === "1";
+      document.getElementById("storyModeToggle").checked = storyMode;
+      
+      // キャラクター画像は保持
+      const avatarUrl = dataStore.getItem("avatar_url");
+      if (avatarUrl) {
+        document.getElementById("character-bg").src = avatarUrl;
+      }
+      
+      // 既知情報は初期化（リセット対象のため）
+      const knownFactsInput = document.getElementById("knownFactsInput");
+      if (knownFactsInput) {
+        knownFactsInput.value = "";
+      }
+      
+      // 感情パラメータの更新
+      renderEmotionParams();
+      
+      console.log("UI更新完了: キャラクター設定を初期値にリセットしました");
+    }
+
+    //（1000スケール用）
+    function getEmotionRank(value) {
+      const num = Number(value);
+      if (num >= 900) return "A";	// Aランク：非常に強い好意・信頼（ラブ度MAX）
+      if (num >= 700) return "B";	// Bランク：強い親しみ、深い信頼感
+      if (num >= 500) return "C";	// Cランク：やや親しい・安定した関係（仲良しの一歩手前）
+      if (num >= 300) return "D";	// Dランク：少し警戒、まだ壁がある
+      if (num >= 0) return "E";  	// Eランク：初対面レベル、まだ距離がある
+      if (num >= -1000) return "F";  // Fランク：軽い拒否、違和感、わずかな敵意
+      return "G";  // Gランク：完全拒絶、敵対・強い嫌悪
+    }
+    
+    // 感情パラメータを日本語の表現に変換する関数
+    function convertAffection(value) {
+      const num = Number(value);
+      if (num >= 900) return "深い好意あり";
+      if (num >= 700) return "好意あり";
+      if (num >= 500) return "やや好意的";
+      if (num >= 300) return "初対面程度";
+      if (num >= 100) return "少し警戒中";
+      return "強い拒絶";
+    }
+    
+    function convertTrust(value) {
+      const num = Number(value);
+      if (num >= 900) return "完全信頼中";
+      if (num >= 700) return "高い信頼";
+      if (num >= 500) return "少し信頼あり";
+      if (num >= 300) return "中立";
+      if (num >= 100) return "やや不信感";
+      return "強く疑っている";
+    }
+    
+    function convertFriendship(value) {
+      const num = Number(value);
+      if (num >= 900) return "親友に近い";
+      if (num >= 700) return "打ち解けている";
+      if (num >= 500) return "会話しやすい";
+      if (num >= 300) return "初対面レベル";
+      if (num >= 100) return "打ち解けていない";
+      return "距離を置いている";
+    }
+    
+    //（上限10000で制御）
+    function updateParam(key, delta) {
+      const current = Number(dataStore.getItem(key) || "0");
+      
+      // スケーリング前の値を保存
+      const originalDelta = delta;
+      
+      // スケーリング関数で計算
+      let scaledDelta = scaleEmotionValue(delta);
+      
+      // 1000で割って増減率（パーセント）を計算
+      const increaseRatePercent = ((scaledDelta / 1000) * 100).toFixed(1);
+      
+      // スケーリング前後の値と増減率をlast_emotion_delta_scaledに保存
+      try {
+        const lastEmotionDelta = JSON.parse(dataStore.getItem("last_emotion_delta_scaled") || "{}");
+        lastEmotionDelta[`${key}_original`] = originalDelta;
+        lastEmotionDelta[`${key}_scaled`] = scaledDelta;
+        lastEmotionDelta[`${key}_rate`] = increaseRatePercent;
+        dataStore.setItem("last_emotion_delta_scaled", JSON.stringify(lastEmotionDelta));
+      } catch (e) {
+        console.warn("スケーリング情報の保存に失敗:", e);
+      }
+
+      // 感情値が高いときは上昇率を鈍化させる（負の変動はそのまま）
+      let adjusted = scaledDelta;
+      if (scaledDelta > 0) {
+        if (current >= 9000) {
+          adjusted = Math.round(scaledDelta * 0.2);
+          console.log(`🔄 高感情値鈍化(9000+): ${scaledDelta} × 0.2 = ${adjusted}`);
+        } else if (current >= 8000) {
+          adjusted = Math.round(scaledDelta * 0.5);
+          console.log(`🔄 高感情値鈍化(8000+): ${scaledDelta} × 0.5 = ${adjusted}`);
+        }
+      }
+
+      const newVal = Math.max(0, Math.min(10000, current + adjusted));
+      console.log(`📊 感情値更新 ${key}: ${current} + ${adjusted} = ${newVal}`);
+      dataStore.setItem(key, newVal.toString());
+    }
+    
+    //開発者モードの表示のなにか
+    function toggleDevMode() {
+      const dev = document.getElementById("devMode");
+      const devToggle = document.getElementById("devToggle");
+      const isActive = dev.style.display === "none" || !dev.style.display;
+
+      // 表示切り替え
+      dev.style.display = isActive ? "block" : "none";
+      
+      // ボタンスタイル切り替え
+      if (isActive) {
+        devToggle.classList.add("active");
+        dataStore.setItem("dev_mode", "1");
+
+        // 開発者モードを表示する際は必ずデバッグモードをオフに
+        dataStore.setItem("debug_mode", "0");
+        document.getElementById("debugToggle").checked = false;
+        renderEmotionParams();
+      } else {
+        devToggle.classList.remove("active");
+        dataStore.setItem("dev_mode", "0");
+      }
+    }
+    
+    //開発者モードの中のデバッグモード関係
+    function updateDebugMode() {
+      const enabled = document.getElementById("debugToggle").checked;
+      dataStore.setItem("debug_mode", enabled ? "1" : "0");
+      renderEmotionParams(); // 状態が変わったら再描画
+      updateTokenUsageDisplay(); // トークン使用量表示も更新
+      
+      // エラーログ表示も更新
+      if (enabled) {
+        errorLogger.updateErrorLogDisplay();
+        updateGpt4oLogsDisplay(); // GPT-4oログも更新
+      } else {
+        document.getElementById("errorLogArea").style.display = "none";
+      }
+      
+      // GPT-4oログ表示エリアの表示/非表示
+      const gpt4oLogsArea = document.getElementById("gpt4oLogsArea");
+      if (gpt4oLogsArea) {
+        gpt4oLogsArea.style.display = enabled ? "block" : "none";
+      }
+    }
+
+    function isDebugMode() {
+      return dataStore.getItem("debug_mode") === "1";
+    }
+
+    function renderEmotionParams() {
+      const aff = dataStore.getItem("affection") || "0";
+      const tr = dataStore.getItem("trust") || "0";
+      const fr = dataStore.getItem("friendship") || "0";
+
+      const emotionBlock = (label, val, emoji) => {
+        const rank = getEmotionRank(val);
+        const detailId = `${label.toLowerCase()}-detail`;
+        let html = `${emoji} ${label}：${rank}`;
+
+        if (isDebugMode()) {
+          html += ` <button onclick="toggleEmotionDetail('${detailId}', '${label}', '${val}')">▶ 詳細</button>`;
+          html += ` <span id="${detailId}" style="display:none; margin-left:5px; color:#aaa;">${val} / 10000</span>`;
+        }
+
+        return `<div style="margin-bottom:0.3rem;">${html}</div>`;
+      };
+
+      const emotionHTML = `
+        <b style="color:#ccc;">現在の感情パラメタ</b><br><br>
+        ${emotionBlock("affection", aff, "❤️")}
+        ${emotionBlock("trust", tr, "🤝")}
+        ${emotionBlock("friendship", fr, "🌈")}
+      `;
+
+      // 感情パラメータエリアを更新
+      document.getElementById("emotionParamsArea").innerHTML = emotionHTML;
+
+      // トークン使用量の表示/非表示を制御
+      const tokenUsageArea = document.getElementById("tokenUsageArea");
+      if (tokenUsageArea) {
+        tokenUsageArea.style.display = isDebugMode() ? "block" : "none";
+        if (isDebugMode()) {
+          updateTokenUsageDisplay();
+        }
+      }
+    }
+
+    // 感情パラメータの詳細表示切替機能
+    function toggleEmotionDetail(detailId, label, value) {
+      const detailElement = document.getElementById(detailId);
+      if (detailElement) {
+        detailElement.style.display = detailElement.style.display === "none" ? "inline" : "none";
+      }
+    }
+
+    function toggleQuickActions() {
+      const panel = document.getElementById("quickActionsPanel");
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    }
+
+    async function handleQuickAction(action) {
+      const messages = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      const lastUser = [...messages].reverse().find(m => m.role === "user");
+      const lastBot = [...messages].reverse().find(m => m.role === "assistant");
+
+      if (!lastBot || !lastUser) {
+        alert("履歴が見つかりません！");
+        return;
+      }
+
+      switch (action) {
+        case "save":
+          saveMessageToMemoryWithSummary(lastBot.content);
+          break;
+        case "editBot":
+          // 長期記憶タイミングの確認
+          if (getMemoryCounter() % 10 === 0) {
+            if (!confirm("⚠️ 現在は長期記憶の登録タイミングです。\n長期記憶修正にともないトークン消費が発生しますが、続けてもよろしいですか？")) {
+              break;
+            }
+            // 直前の長期記憶を削除
+            removeLastMemory();
+          }
+
+          const newBot = prompt("キャラの返事を修正：", lastBot.content);
+          if (newBot) {
+            lastBot.content = newBot;
+            dataStore.setItem("chat_history", JSON.stringify(messages));
+            
+            // 長期記憶タイミングなら再登録
+            if (getMemoryCounter() % 10 === 0) {
+              summarizeMemoryFromRecentChats();
+            }
+            
+            location.reload();
+          }
+          break;
+        case "editUser":
+          const newUser = prompt("自分の発言を修正：", lastUser.content);
+          if (newUser) {
+            // 直前の感情変動を取得して相殺
+            try {
+              const lastDelta = JSON.parse(dataStore.getItem("last_emotion_delta") || "{}");
+              if (lastDelta && typeof lastDelta === 'object') {
+                // 感情値を相殺（マイナス方向に適用）
+                if (typeof lastDelta.affection === 'number') {
+                  updateParam("affection", -lastDelta.affection);
+                }
+                if (typeof lastDelta.trust === 'number') {
+                  updateParam("trust", -lastDelta.trust);
+                }
+                if (typeof lastDelta.friendship === 'number') {
+                  updateParam("friendship", -lastDelta.friendship);
+                }
+              }
+            } catch (e) {
+              console.warn("感情値の相殺に失敗:", e);
+            }
+
+            // メッセージを更新して再送信
+            lastUser.content = newUser;
+            dataStore.setItem("chat_history", JSON.stringify(messages));
+            
+            // 入力欄にセットして送信（location.reloadは使わない）
+            document.getElementById("userInput").value = newUser;
+            sendMessage();
+          }
+          break;
+        case "editLastMessage":
+          // 最新のユーザーメッセージを編集して再送信
+          await editLastMessage();
+          break;
+        case "regen":
+          // プロンプト入力モーダルを表示
+          showRegenPromptModal();
+          break;
+      }
+
+      toggleQuickActions(); // メニュー閉じる
+    }
+    
+    // 最新のユーザーメッセージを編集して再送信する関数
+    async function editLastMessage() {
+      const messages = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      const lastUser = [...messages].reverse().find(m => m.role === "user");
+      const lastBot = [...messages].reverse().find(m => m.role === "assistant");
+      
+      if (!lastBot || !lastUser) {
+        alert("履歴が見つかりません！");
+        return;
+      }
+      
+      const newUserMessage = prompt("最新の発言を修正してください:", lastUser.content);
+      if (!newUserMessage || newUserMessage === lastUser.content) {
+        return; // キャンセルまたは変更なし
+      }
+      
+      // 感情値の相殺（直前の会話の影響を打ち消す）
+      try {
+        const lastDelta = JSON.parse(dataStore.getItem("last_emotion_delta") || "{}");
+        if (lastDelta && typeof lastDelta === 'object') {
+          // 感情値を相殺（マイナス方向に適用）
+          if (typeof lastDelta.affection === 'number') {
+            updateParam("affection", -lastDelta.affection);
+          }
+          if (typeof lastDelta.trust === 'number') {
+            updateParam("trust", -lastDelta.trust);
+          }
+          if (typeof lastDelta.friendship === 'number') {
+            updateParam("friendship", -lastDelta.friendship);
+          }
+        }
+      } catch (e) {
+        console.warn("感情値の相殺に失敗:", e);
+      }
+      
+      // 会話履歴から最後のアシスタントメッセージを削除
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === "assistant") {
+          messages.splice(i, 1);
+          break;
+        }
+      }
+      
+      // ユーザーの最後のメッセージを更新
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === "user") {
+          messages[i].content = newUserMessage;
+          break;
+        }
+      }
+      
+      // 更新した履歴を保存
+      dataStore.setItem("chat_history", JSON.stringify(messages));
+      
+      // UIを更新
+      loadHistory();
+      
+      // 再生成
+      await regenerateAssistantMessage(newUserMessage);
+    }
+    
+    // アシスタントの返答を再生成する関数
+    async function regenerateAssistantMessage(userMessage) {
+      // メモリーカウンター増加を無効化
+      window.allowMemoryIncrement = false;
+      
+      // 長期記憶タイミングの場合、前の記憶を削除
+      if (getMemoryCounter() % 10 === 0) {
+        removeLastMemory();
+      }
+      
+      try {
+        const typingId = "bot-typing";
+        document.getElementById("messages").innerHTML += `
+        <div class="message assistant" id="${typingId}">
+          <div class="bubble">入力中です...</div>
+        </div>`;
+        scrollToBottom();
+        
+        const apiKey = dataStore.getItem("openai_api_key");
+        if (!apiKey) {
+          throw new Error("APIキーが設定されていません");
+        }
+        
+        const useMemoryCheck = getMemoryCounter() % 10 === 0;
+        const messages = buildMessages(userMessage);
+        
+        // API呼び出し
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.7, 1800); // トークン制限を1800に設定
+        });
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // トークン制限による切断を検出（finish_reason="length"）
+        const isTruncated = data.choices[0].finish_reason === "length";
+        
+        let replyRaw = data.choices[0].message.content.trim();
+        
+        // 入力中表示削除
+        document.getElementById(typingId)?.remove();
+        
+        // JSONパース処理 - 改善版
+        let parsed;
+        try {
+          // JSONの部分を抽出（複数行対応）- 改善版
+          let jsonStr = "";
+          
+          // JSONオブジェクトを探す - 正規表現を強化
+          const jsonMatch = replyRaw.match(/\{[\s\S]*?\}/g);
+          if (jsonMatch && jsonMatch.length > 0) {
+            // 最長のJSONを使用（最も完全な形式である可能性が高い）
+            jsonStr = jsonMatch.reduce((a, b) => a.length > b.length ? a : b);
+            
+            try {
+              parsed = JSON.parse(jsonStr);
+            } catch (e) {
+              console.warn("最初のJSON解析に失敗、修復を試みます:", e);
+              
+              // 不完全なJSONの修復を試みる
+              if (jsonStr.includes('"emotionDelta": {') && !jsonStr.includes('}}}')) {
+                // emotionDeltaオブジェクトが閉じられていない場合
+                
+                // 足りない閉じ括弧の数を推定
+                let openBraces = (jsonStr.match(/\{/g) || []).length;
+                let closeBraces = (jsonStr.match(/\}/g) || []).length;
+                let missingBraces = openBraces - closeBraces;
+                
+                // 足りない閉じ括弧を追加
+                let fixedJson = jsonStr;
+                for (let i = 0; i < missingBraces; i++) {
+                  fixedJson += '}';
+                }
+                
+                console.log('修復したJSON:', fixedJson);
+                try {
+                  parsed = JSON.parse(fixedJson);
+                } catch (innerErr) {
+                  console.warn("括弧補完修復に失敗:", innerErr);
+                  
+                  // emotionDelta の各プロパティが存在するが値が欠けている場合
+                  if (jsonStr.includes('"affection":') && jsonStr.includes('"trust":')) {
+                    // 手動で emotionDelta オブジェクトを構築
+                    const affectionMatch = jsonStr.match(/"affection":\s*(\d+)/);
+                    const trustMatch = jsonStr.match(/"trust":\s*(\d+)/);
+                    const friendshipMatch = jsonStr.match(/"friendship":\s*(\d+)/);
+                    
+                    // 基本的な構造を構築
+                    const manualObj = {
+                      reply: "",
+                      longTerm: false,
+                      important: false,
+                      memory: null,
+                      emotionDelta: {
+                        affection: affectionMatch ? parseInt(affectionMatch[1]) : 5,
+                        trust: trustMatch ? parseInt(trustMatch[1]) : 5,
+                        friendship: friendshipMatch ? parseInt(friendshipMatch[1]) : 5
+                      }
+                    };
+                    
+                    // replyを抽出
+                    const replyMatch = jsonStr.match(/"reply":\s*"([^"]*)"/);
+                    if (replyMatch && replyMatch[1]) {
+                      manualObj.reply = replyMatch[1];
+                    }
+                    
+                    parsed = manualObj;
+                  }
+                }
+              } else if (jsonStr.includes('"reply": "') && !jsonStr.includes('"}')) {
+                // reply部分が閉じられていない場合
+                const replyMatch = jsonStr.match(/"reply":\s*"([^"]*)$/);
+                if (replyMatch) {
+                  // 閉じ括弧を追加
+                  const fixedJson = jsonStr + '"}';
+                  console.log('修復したJSON (reply):', fixedJson);
+                  try {
+                    parsed = JSON.parse(fixedJson);
+                  } catch (innerErr) {
+                    // 追加の修復が必要な場合
+                    const moreFixedJson = fixedJson + '}';
+                    console.log('追加修復したJSON:', moreFixedJson);
+                    try {
+                      parsed = JSON.parse(moreFixedJson);
+                    } catch (deepErr) {
+                      // 手動でオブジェクト構築
+                      parsed = {
+                        reply: replyMatch[1],
+                        longTerm: false,
+                        important: false,
+                        memory: null,
+                        emotionDelta: { affection: 5, trust: 5, friendship: 5 }
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // トークン制限による切断を処理（emotionDelta が不完全な場合）
+          if (isTruncated && (!parsed || !parsed.emotionDelta || 
+              typeof parsed.emotionDelta !== 'object' ||
+              parsed.emotionDelta.affection === undefined)) {
+            
+            console.log('トークン制限による切断を検出、手動で構築します');
+            
+            // replyを抽出
+            let extractedReply = "";
+            if (parsed && parsed.reply) {
+              extractedReply = parsed.reply;
+            } else {
+              const replyMatch = replyRaw.match(/"reply":\s*"([^"]*)(?:"|$)/);
+              if (replyMatch && replyMatch[1]) {
+                extractedReply = replyMatch[1];
+              } else {
+                // JSON形式でないテキストを使用
+                extractedReply = replyRaw.substring(0, 200);
+              }
+            }
+            
+            // オブジェクトを再構築（emotionDeltaにはフォールバック値として5を使用）
+            parsed = {
+              reply: extractedReply,
+              longTerm: false,
+              important: false,
+              memory: null,
+              emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値：APIからの応答が得られない場合に使用
+            };
+          }
+          
+          // 必要なプロパティの存在チェック
+          if (!parsed || (!parsed.reply && !parsed.response)) {
+            // JSONが見つからない、または必要なプロパティがない場合
+            
+            // トークン制限による切断の場合
+            if (isTruncated) {
+              // reply部分を抽出して使用
+              const replyMatch = replyRaw.match(/"reply":\s*"([^"]*)(?:"|$)/);
+              if (replyMatch) {
+                const extractedText = replyMatch[1];
+                parsed = {
+                  reply: extractedText + "...", // 省略記号を追加
+                  longTerm: false,
+                  important: false,
+                  memory: null,
+                  emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値：APIからの応答が得られない場合に使用
+                };
+              } else {
+                // JSON形式でないテキストをそのまま使用
+                parsed = {
+                  reply: replyRaw.substring(0, 200) + "...",
+                  longTerm: false,
+                  important: false,
+                  memory: null,
+                  emotionDelta: { affection: 5, trust: 5, friendship: 5 } // フォールバック値
+                };
+              }
+            } else {
+              // 生のテキストをそのまま表示する場合
+              const plainText = replyRaw.replace(/[\{\}"]/g, "")
+                               .replace(/reply:/, "")
+                               .replace(/longTerm:.*/, "")
+                               .trim();
+              
+              parsed = {
+                reply: plainText || "応答を処理できませんでした",
+                longTerm: false,
+                important: false,
+                memory: null,
+                emotionDelta: { affection: 0, trust: 0, friendship: 0 } // エラー時はパラメータ変動なし
+              };
+            }
+          }
+          
+          // responseプロパティがある場合はreplyにコピー
+          if (parsed.response && !parsed.reply) {
+            parsed.reply = parsed.response;
+          }
+          
+          // トークン制限による切断の場合、末尾に省略記号を追加
+          if (isTruncated && parsed.reply && !parsed.reply.endsWith("...")) {
+            parsed.reply = parsed.reply + "...";
+          }
+          
+          // 二重引用符を日本語の引用符に置換
+          if (parsed.reply) {
+            parsed.reply = parsed.reply.replace(/"([^"]*)"/g, '「$1」');
+          }
+          
+        } catch (e) {
+          console.error("JSON解析エラー:", e);
+          console.error("解析対象テキスト:", replyRaw);
+          
+          // エラーログに保存
+          errorLogger.logError(e, {
+            apiResponse: data,
+            rawResponse: replyRaw,
+            userMessage: userMessage,
+            memoryCheck: useMemoryCheck,
+            isTruncated: isTruncated
+          });
+          
+          // エラー時のフォールバック処理 - テキスト形式から抽出を試みる
+          let cleanText = replyRaw;
+          
+          // トークン制限による切断の場合
+          if (isTruncated) {
+            // できるだけ有用なテキストを抽出
+            if (replyRaw.includes('"reply": "')) {
+              const replyMatch = replyRaw.match(/"reply": "([^"]*)$/);
+              if (replyMatch) {
+                cleanText = replyMatch[1] + "...";
+              }
+            }
+          } 
+          // JSON形式っぽい部分があれば除去
+          else if (replyRaw.includes('{') && replyRaw.includes('}')) {
+            // JSONらしき部分を取り除いて、純粋なテキスト部分を抽出
+            const textParts = replyRaw.split('{');
+            if (textParts.length > 0 && textParts[0].trim()) {
+              cleanText = textParts[0].trim();
+            } else if (replyRaw.includes('"reply":')) {
+              // reply部分を抽出
+              const replyMatch = replyRaw.match(/"reply"\s*:\s*"([^"]*)"/);
+              if (replyMatch && replyMatch[1]) {
+                cleanText = replyMatch[1];
+              }
+            }
+          }
+          
+          // フォールバック用のオブジェクト
+          parsed = {
+            reply: cleanText,
+            longTerm: false,
+            important: false,
+            memory: null,
+            emotionDelta: { affection: 0, trust: 0, friendship: 0 }
+          };
+          
+          // エラーメッセージを表示するのは、抽出したテキストが元のreplyRawとほぼ同じ場合のみ
+          // テキスト抽出に成功した場合はエラーメッセージを表示しない
+          if (isDebugMode() && (cleanText === replyRaw || cleanText.length < 20)) {
+            document.getElementById("messages").innerHTML += `
+              <div class="message assistant" style="opacity: 0.5;">
+                <div class="bubble" style="background: rgba(255,0,0,0.1);">
+                  ⚠️ 応答の解析に失敗しました：${e.message}<br>
+                  <small>開発者向け：コンソールを確認してください</small>
+                </div>
+              </div>`;
+          }
+        }
+        
+        // トークン使用量を記録
+        if (data.usage && data.usage.total_tokens) {
+          // 最新のトークン使用量として保存（データビューア用）
+          dataStore.setItem("last_token_usage", JSON.stringify({
+            prompt_tokens: data.usage.prompt_tokens || 0,
+            completion_tokens: data.usage.completion_tokens || 0,
+            total_tokens: data.usage.total_tokens || 0,
+            timestamp: new Date().toISOString()
+          }));
+          
+          // 集計用のトークン使用量も保存
+          tokenTracker.saveTokenUsage(data.usage.total_tokens);
+          
+          // 変更を即時保存
+          dataStore.flushChanges();
+          
+          if (isDebugMode()) {
+            updateTokenUsageDisplay();
+          }
+        }
+        
+        // 感情パラメタ更新と保存
+        if (parsed.emotionDelta && typeof parsed.emotionDelta === 'object') {
+          // スケーリングされた感情変動を計算
+          const scaledEmotionDelta = {
+            affection: 0,
+            trust: 0,
+            friendship: 0
+          };
+          
+          // 各感情パラメータのスケーリング
+          if (typeof parsed.emotionDelta.affection === 'number') {
+            scaledEmotionDelta.affection = scaleEmotionValue(parsed.emotionDelta.affection);
+          }
+          if (typeof parsed.emotionDelta.trust === 'number') {
+            scaledEmotionDelta.trust = scaleEmotionValue(parsed.emotionDelta.trust);
+          }
+          if (typeof parsed.emotionDelta.friendship === 'number') {
+            scaledEmotionDelta.friendship = scaleEmotionValue(parsed.emotionDelta.friendship);
+          }
+          
+          // スケーリング後の値をlast_emotion_deltaに保存
+          dataStore.setItem("last_emotion_delta", JSON.stringify(scaledEmotionDelta));
+          
+          // 感情パラメタ更新
+          if (typeof parsed.emotionDelta.affection === 'number') {
+            updateParam("affection", parsed.emotionDelta.affection);
+          }
+          if (typeof parsed.emotionDelta.trust === 'number') {
+            updateParam("trust", parsed.emotionDelta.trust);
+          }
+          if (typeof parsed.emotionDelta.friendship === 'number') {
+            updateParam("friendship", parsed.emotionDelta.friendship);
+          }
+        } else {
+          console.warn("emotionDeltaが不正な形式です:", parsed.emotionDelta);
+          dataStore.setItem("last_emotion_delta", JSON.stringify({
+            affection: 0,
+            trust: 0,
+            friendship: 0
+          }));
+        }
+        
+        // 長期記憶保存
+        if (parsed.longTerm && parsed.memory && parsed.memory !== "null") {
+          saveToChatStory(parsed.memory);
+        }
+        
+        // 表示（1回だけ）
+        let safeResponse = typeof parsed.reply === "string" && parsed.reply.trim()
+          ? parsed.reply
+          : "（応答内容が取得できませんでした）";
+        
+        // 文章が途中で切れていないか確認 - トークン制限で切れた場合のみ処理
+        if (isTruncated && !safeResponse.endsWith('...')) {
+          // トークン制限による切断の場合のみ、省略記号を追加
+          safeResponse = safeResponse + "...";
+        }
+        // 注：その他の文末判定ロジックは省略（UIの制限による切り詰めを防止）
+        
+        // 画面にキャラ返答を表示
+        document.getElementById("messages").innerHTML += `
+        <div class="message assistant">
+          <div class="bubble">${safeResponse}</div>
+        </div>`;
+        scrollToBottom();
+        
+        // 会話履歴に保存 - 生の応答ではなく、抽出済みの安全なテキストを保存
+        saveMessage("assistant", safeResponse);
+        
+        // useMemoryCheck時の追加処理
+        if (useMemoryCheck) {
+          try {
+            // 念のため再パースしても表示はしない（表示済み）
+            const match = replyRaw.match(/\{[\s\S]*\}/);
+            const debugParsed = match ? JSON.parse(match[0]) : JSON.parse(replyRaw);
+            
+            // memoryとkeywordsのみ再処理
+            if (
+              (debugParsed.longTerm || debugParsed.important) &&
+              debugParsed.memory &&
+              debugParsed.memory !== "null"
+            ) {
+              saveToChatStory(debugParsed.memory);
+            }
+            
+            dataStore.setItem("last_keywords", JSON.stringify(debugParsed.keywords || []));
+          } catch (err) {
+            console.warn("useMemoryCheck用再パース失敗:", err);
+          }
+          
+          // 会話内容のまとめ
+          await summarizeMemoryFromRecentChats();
+        }
+        
+        // 短期記憶の更新（非同期で実行）- ユーザーメッセージも引数に追加
+        summarizeShortTermMemory(safeResponse, userMessage).catch(err => {
+          console.error("短期記憶更新エラー:", err);
+        });
+        
+        // 直近会話圧縮も更新（再生成モードでない場合のみ）
+        if (!isRegenMode) {
+          compressRecentDialogue().catch(err => {
+            console.error("直近会話圧縮エラー:", err);
+          });
+        }
+        
+      } catch (err) {
+        console.error("再生成エラー:", err);
+        document.getElementById("messages").innerHTML += `
+        <div class="message assistant">
+          <div class="bubble">⚠️ エラー: ${err.message}</div>
+        </div>`;
+        scrollToBottom();
+      } finally {
+        window.allowMemoryIncrement = true;
+        document.getElementById("userInput").focus();
+      }
+      
+      // 最後に送信したプロンプト全体を保存
+      dataStore.setItem("last_prompt_content", JSON.stringify(messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))));
+    }
+    
+    // ストーリーモードの更新
+    function updateStoryMode() {
+      const enabled = document.getElementById("storyModeToggle").checked;
+      dataStore.setItem("story_mode", enabled ? "1" : "0");
+      
+      // 情報表示の切り替え
+      document.getElementById("storyModeInfo").style.display = enabled ? "block" : "none";
+      
+      // 濃度選択UIの表示/非表示
+      document.getElementById("storyIntensitySelector").style.display = enabled ? "block" : "none";
+      
+      // ストーリーリードスライダーを必ず表示（追加）
+      if (enabled) {
+        const storySliderContainer = document.querySelector('#storyIntensitySelector > div:last-child');
+        if (storySliderContainer) {
+          storySliderContainer.style.display = "block";
+        }
+        // スライダーの値を設定
+        applyStoryLeadProbability();
+      }
+    }
+    
+    // ストーリーモードの状態を反映
+    function applyStoryMode() {
+      // デフォルトでONにする (保存されている値が明示的に "0" の場合のみOFF)
+      const isStoryMode = dataStore.getItem("story_mode") !== "0";
+      
+      // もし未設定なら明示的に "1" を保存する
+      if (!dataStore.getItem("story_mode")) {
+        dataStore.setItem("story_mode", "1");
+      }
+      
+      document.getElementById("storyModeToggle").checked = isStoryMode;
+      document.getElementById("storyModeInfo").style.display = isStoryMode ? "block" : "none";
+      document.getElementById("storyIntensitySelector").style.display = isStoryMode ? "block" : "none";
+      
+      // 濃度設定の反映
+      applyStoryIntensity();
+      
+      // ストーリーリード確率の反映
+      applyStoryLeadProbability();
+      
+      // ストーリーリードスライダーを必ず表示（追加）
+      const storySliderContainer = document.querySelector('#storyIntensitySelector > div:last-child');
+      if (storySliderContainer) {
+        storySliderContainer.style.display = "block";
+      }
+    }
+    
+    // 物語濃度の設定
+    function setStoryIntensity(intensity) {
+      dataStore.setItem("story_intensity", intensity);
+      applyStoryIntensity();
+    }
+    
+    // 物語濃度の状態を反映
+    function applyStoryIntensity() {
+      const intensity = dataStore.getItem("story_intensity") || "medium";
+      
+      // ボタンの見た目を更新
+      document.getElementById("intensityMedium").classList.toggle("active", intensity === "medium");
+      document.getElementById("intensityHigh").classList.toggle("active", intensity === "high");
+      
+      // 説明文を更新
+      let infoText = "";
+      if (intensity === "medium") {
+        infoText = "ミドル：400文字程度、バランスの取れた物語描写";
+      } else if (intensity === "high") {
+        infoText = "ハイ：600〜800文字、文芸的で映像的な豊かな描写";
+      }
+      document.getElementById("intensityInfo").textContent = infoText;
+    }
+
+    // 再生成用のプロンプトを保持する変数
+    window.userPromptOverride = null;
+
+    // プロンプトモーダルの表示制御
+    function showRegenPromptModal() {
+      document.getElementById("regenerateModal").style.display = "block";
+      document.getElementById("regenPrompt").value = "";
+    }
+
+    // プロンプトモーダルを閉じる
+    function hideRegenPromptModal() {
+      document.getElementById("regenerateModal").style.display = "none";
+    }
+
+    // プロンプト入力の処理
+    async function handleRegenPrompt(isOK) {
+      hideRegenPromptModal();
+      
+      if (!isOK) return; // キャンセル時は何もしない
+      
+      const promptText = document.getElementById("regenPrompt").value.trim();
+      window.userPromptOverride = promptText; // プロンプトを保存
+      
+      // 既存の再生成処理を実行
+      await executeRegeneration();
+      
+      // プロンプトをクリア
+      window.userPromptOverride = null;
+    }
+
+    // 再生成の実行処理（既存処理を関数として分離）
+    async function executeRegeneration() {
+      // 長期記憶タイミングの確認
+      if (getMemoryCounter() % 10 === 0) {
+        if (!confirm("⚠️ 現在は長期記憶の登録タイミングです。\n長期記憶修正にともないトークン消費が発生しますが、続けてもよろしいですか？")) {
+          return;
+        }
+        removeLastMemory();
+      }
+
+      // 感情値の相殺
+      try {
+        const lastDelta = JSON.parse(dataStore.getItem("last_emotion_delta") || "{}");
+        if (lastDelta && typeof lastDelta === 'object') {
+          // 感情値を相殺（マイナス方向に適用）
+          if (typeof lastDelta.affection === 'number') {
+            updateParam("affection", -lastDelta.affection);
+          }
+          if (typeof lastDelta.trust === 'number') {
+            updateParam("trust", -lastDelta.trust);
+          }
+          if (typeof lastDelta.friendship === 'number') {
+            updateParam("friendship", -lastDelta.friendship);
+          }
+        }
+      } catch (e) {
+        console.warn("感情値の相殺に失敗:", e);
+      }
+
+      // チャット履歴から最後のアシスタントメッセージを削除
+      try {
+        let history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].role === "assistant") {
+            history.splice(i, 1);
+            break;
+          }
+        }
+        dataStore.setItem("chat_history", JSON.stringify(history));
+        loadHistory();
+      } catch (e) {
+        console.warn("履歴の更新に失敗:", e);
+      }
+
+      // メモリーカウンター増加を無効化
+      window.allowMemoryIncrement = false;
+
+      try {
+        const messages = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        const lastUser = [...messages].reverse().find(m => m.role === "user");
+        
+        if (lastUser) {
+          document.getElementById("userInput").value = lastUser.content;
+          await sendMessage(true);
+
+          if (getMemoryCounter() % 10 === 0) {
+            await summarizeMemoryFromRecentChats();
+          }
+        }
+      } catch (e) {
+        console.error("再生成処理でエラーが発生:", e);
+      } finally {
+        window.allowMemoryIncrement = true;
+      }
+    }
+
+    // トークン使用量管理用の関数群
+    const tokenTracker = {
+      // 設定値
+      TOKENS_PER_USD: 2000000,  // 0.0000005 USD/token の逆数
+      JPY_PER_USD: 150,         // 為替レート
+      GPT4O_TOKENS_PER_USD: 250000, // 0.000004 USD/token の逆数 (GPT-4o用)
+
+      // 月初日の取得・設定
+      getStartDay() {
+        return Number(dataStore.getItem("token_track_start_day") || "1");
+      },
+      setStartDay(day) {
+        dataStore.setItem("token_track_start_day", String(Math.min(28, Math.max(1, day))));
+      },
+
+      // 現在の集計期間の開始日を取得
+      getCurrentPeriodStart() {
+        const now = new Date();
+        const startDay = this.getStartDay();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        
+        // 現在日が開始日より前なら前月の開始日
+        if (now.getDate() < startDay) {
+          return new Date(year, month - 1, startDay);
+        }
+        return new Date(year, month, startDay);
+      },
+
+      // トークン使用ログの保存
+      saveTokenUsage(tokens, model = "gpt-4.1-mini") {
+        try {
+          const now = new Date().toISOString();
+          const logs = JSON.parse(dataStore.getItem("token_usage_logs") || "[]");
+          
+          logs.push({ date: now, tokens, model });
+          console.log("トークン使用ログを保存:", { date: now, tokens, model }, "合計:", logs.length);
+            
+          dataStore.setItem("token_usage_logs", JSON.stringify(logs));
+        } catch (e) {
+          console.error("トークン使用ログの保存に失敗:", e);
+        }
+      },
+
+      // 現在期間のトークン使用量を計算
+      getCurrentPeriodTokens(modelFilter = null) {
+        const logs = JSON.parse(dataStore.getItem("token_usage_logs") || "[]");
+        const startDate = this.getCurrentPeriodStart();
+        
+        return logs
+          .filter(log => new Date(log.date) >= startDate)
+          .filter(log => !modelFilter || log.model === modelFilter)
+          .reduce((sum, log) => sum + log.tokens, 0);
+      },
+
+      // 円換算（小数点以下2桁まで）
+      calculateJPY(tokens, model = "gpt-4.1-mini") {
+        const rate = model === "gpt-4o" ? this.GPT4O_TOKENS_PER_USD : this.TOKENS_PER_USD;
+        return ((tokens / rate) * this.JPY_PER_USD).toFixed(2);
+      },
+      
+      // GPT-4oのログをクリーンアップ（20件を超えたら古いものから削除）
+      cleanupOldLogs() {
+        try {
+          const logs = JSON.parse(dataStore.getItem("gpt4o_logs") || "[]");
+          if (logs.length > 20) {
+            logs.splice(0, logs.length - 20);
+            dataStore.setItem("gpt4o_logs", JSON.stringify(logs));
+          }
+        } catch (e) {
+          console.error("ログクリーンアップエラー:", e);
+        }
+      }
+    };
+
+    // 開発者モード内のトークン使用量表示を更新
+    function updateTokenUsageDisplay() {
+      if (!isDebugMode()) return;
+
+      const startDate = tokenTracker.getCurrentPeriodStart();
+      const totalTokens = tokenTracker.getCurrentPeriodTokens();
+      const totalGpt41Tokens = tokenTracker.getCurrentPeriodTokens("gpt-4.1-mini");
+      const totalGpt4oTokens = tokenTracker.getCurrentPeriodTokens("gpt-4o");
+      
+      const costJPY = tokenTracker.calculateJPY(totalTokens);
+      const costGpt41JPY = tokenTracker.calculateJPY(totalGpt41Tokens, "gpt-4.1-mini");
+      const costGpt4oJPY = tokenTracker.calculateJPY(totalGpt4oTokens, "gpt-4o");
+      
+      const startDay = tokenTracker.getStartDay();
+
+      const usageHTML = `
+        <div class="token-usage">
+          <h4>📊 トークン利用状況</h4>
+          
+          <div class="form-group">
+            <label>📅 集計開始日</label>
+            <div class="input-group">
+              <input type="number" 
+                value="${startDay}" 
+                min="1" max="28" 
+                class="form-input"
+                style="width: 80px;"
+                onchange="tokenTracker.setStartDay(this.value); updateTokenUsageDisplay();">
+              <span style="margin-left: 0.5rem; color: #aaa;">日</span>
+            </div>
+          </div>
+
+          <div class="token-stats">
+            <div class="stat-item">
+              <label>🧮 今月の合計</label>
+              <div class="stat-value">${totalTokens.toLocaleString()} tokens</div>
+            </div>
+            <div class="stat-item">
+              <label>💸 概算費用</label>
+              <div class="stat-value">約${costJPY}円</div>
+            </div>
+          </div>
+          
+          <div class="token-model-breakdown">
+            <div class="model-usage">
+              <label>GPT-4.1mini:</label>
+              <div>${totalGpt41Tokens.toLocaleString()} tokens (約${costGpt41JPY}円)</div>
+            </div>
+            <div class="model-usage">
+              <label>GPT-4o:</label>
+              <div>${totalGpt4oTokens.toLocaleString()} tokens (約${costGpt4oJPY}円)</div>
+            </div>
+          </div>
+
+          <div class="token-period">
+            集計期間：${startDate.toLocaleDateString()} ～ 現在
+          </div>
+        </div>
+      `;
+
+      document.getElementById("tokenUsageArea").innerHTML = usageHTML;
+    }
+
+    async function saveMessageToMemoryWithSummary(text) {
+      const apiKey = dataStore.getItem("openai_api_key");
+      if (!apiKey) {
+        alert("APIキーが設定されていません。設定画面から入力してください。");
+        return;
+      }
+
+      const prompt = `
+以下はキャラクターのセリフです。
+これを、長期的な記憶として残すために簡潔な1〜2文に要約してください。
+
+返答は以下の形式で、JSONのみで出力してください：
+
+{
+  "summary": "記憶に適した要約文"
+}
+
+セリフ：
+「${text}」
+`;
+
+      try {
+        const messages = [{ role: "system", content: prompt }];
+        
+        const data = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .callOpenAI(apiKey, messages, model, 0.3, 150);
+        });
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        const reply = data.choices[0].message.content;
+        const match = reply.match(/\{[\s\S]*?\}/);
+        if (!match) throw new Error("JSONが見つかりません");
+
+        const parsed = JSON.parse(match[0]);
+        if (parsed.summary) {
+          saveToChatStory(parsed.summary);
+          alert("✅ 要約して記憶に保存しました！");
+        } else {
+          throw new Error("summaryが空です");
+        }
+
+      } catch (e) {
+        console.error("記憶保存失敗:", e);
+        alert("⚠️ 要約・記憶保存に失敗しました！");
+      }
+    }
+
+    // GAS用のページロード処理
+    window.addEventListener('load', function() {
+      console.log("ページ読み込み開始");
+      
+      // サーバーからデータをロード
+      dataStore.initialize(() => {
+        try {
+          console.log("初期化コールバック実行");
+          
+        // データロード完了後の処理
+          
+          // 会話履歴の修復を試みる
+          repairChatHistory();
+          
+        loadHistory();
+          applyStoryMode();
+
+        // 設定画面の初期値を設定
+        document.getElementById("charPrompt").value = dataStore.getItem("character_prompt") || "";
+        document.getElementById("charSelfSetting").value = dataStore.getItem("char_self") || "";
+        document.getElementById("apiKey").value = dataStore.getItem("openai_api_key") || "";
+
+        // 初回ロード時のテンプレート設定
+          if (!dataStore.getItem("character_prompt")) {
+            document.getElementById("charPrompt").value = `名前：性別、特徴`;
+        }
+
+        renderEmotionParams();
+        document.getElementById("debugToggle").checked = isDebugMode();
+          
+          // デバッグモードが有効ならエラーログ表示を更新
+          if (isDebugMode()) {
+            errorLogger.updateErrorLogDisplay();
+          }
+          
+          // フォトモードの状態を復元
+          const photoMode = dataStore.getItem("photo_mode") === "1";
+          if (photoMode) {
+            document.body.classList.add('photo-mode');
+            document.getElementById('character-bg').style.opacity = "1";
+            document.querySelector('.photo-mode-toggle').style.background = "#2196F3";
+          }
+        
+        // エンターキーでメッセージ送信
+        document.getElementById("userInput").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+              // Shift+Enterの場合は何もしない（通常の動作を許可）
+              if (e.shiftKey) {
+                return;
+              }
+              
+              // 通常のEnterキーの場合は改行を挿入する
+            e.preventDefault();
+              
+              // カーソル位置に改行を挿入
+              const textarea = this;
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const value = textarea.value;
+              
+              textarea.value = value.substring(0, start) + "\n" + value.substring(end);
+              
+              // カーソル位置を改行後に設定
+              textarea.selectionStart = textarea.selectionEnd = start + 1;
+          }
+        });
+        } catch (e) {
+          console.error("初期化エラー:", e);
+          alert("初期化中にエラーが発生しました。ページを再読み込みしてください。");
+        }
+      });
+    });
+
+    // データビューアーの表示/非表示を切り替える
+    function toggleDataViewer() {
+      const modal = document.getElementById("dataViewerModal");
+      const isVisible = modal.style.display === "block";
+      
+      if (isVisible) {
+        modal.style.display = "none";
+      } else {
+        updateDataViewer();
+        modal.style.display = "block";
+      }
+    }
+    
+    // データビューアーのモードを切り替える（閲覧/編集）
+    function switchDataViewerMode(mode) {
+      // ボタンのアクティブ状態を更新
+      document.getElementById('viewModeBtn').classList.toggle('active', mode === 'view');
+      document.getElementById('editModeBtn').classList.toggle('active', mode === 'edit');
+      
+      // 現在のモードを保存
+      window.dataViewerMode = mode;
+      
+      // ビューを更新
+      updateDataViewer();
+    }
+    
+    // データビューアーの内容を更新
+    function updateDataViewer() {
+      const container = document.getElementById("dataViewerContent");
+      const allData = dataStore.getAllData();
+      const mode = window.dataViewerMode || 'view'; // デフォルトは閲覧モード
+      
+      // データをカテゴリに分類
+      const categories = {
+        "キャラクター設定": ["character_prompt", "char_self", "avatar_url"],
+        "感情パラメータ": ["affection", "trust", "friendship", "last_emotion_delta", "last_emotion_delta_scaled", "emotionInitialValues"],
+        "記憶・履歴": ["chat_story", "chat_history", "last_keywords", "memory_counter", "short_term_memory", "recent_dialogue_compressed"],
+        "表示設定": ["story_mode", "story_intensity", "photo_mode", "bgImageData"],
+        "システム設定": ["openai_api_key", "dev_mode", "debug_mode", "resetEmotionToggle"],
+        "利用統計": ["token_track_start_day", "token_usage_logs", "last_token_usage"]
+      };
+      
+      // HTMLを生成
+      let html = '';
+      
+      // 最新トークン使用量の表示を追加
+      let lastTokenUsage = null;
+      try {
+        lastTokenUsage = JSON.parse(dataStore.getItem("last_token_usage") || "null");
+      } catch (e) {}
+      
+      if (lastTokenUsage) {
+        html += `<div class="data-category">
+          <h3 class="data-category-title">📊 最新トークン使用量</h3>
+          <div class="data-item">
+            <div class="data-key">使用状況</div>
+            <div class="data-value">
+              <div><strong>上り(プロンプト):</strong> ${lastTokenUsage.prompt_tokens.toLocaleString()} tokens</div>
+              <div><strong>下り(補完):</strong> ${lastTokenUsage.completion_tokens.toLocaleString()} tokens</div>
+              <div><strong>合計:</strong> ${lastTokenUsage.total_tokens.toLocaleString()} tokens</div>
+              <div><small style="color:#888;">${new Date(lastTokenUsage.timestamp).toLocaleString()}</small></div>
+            </div>
+          </div>
+        </div>`;
+      }
+      
+      // 最後に送信したプロンプト内容を表示
+      let lastPromptContent = null;
+      try {
+        lastPromptContent = JSON.parse(dataStore.getItem("last_prompt_content") || "null");
+      } catch (e) {}
+      
+      if (lastPromptContent) {
+        html += `<div class="data-category">
+          <h3 class="data-category-title">📤 最新送信プロンプト</h3>
+          <div class="data-item">
+            <div class="data-key">上りデータ全内容</div>
+            <div class="data-value" style="max-height: 300px; overflow-y: auto;">`;
+        
+        // プロンプト内容を整形して表示
+        lastPromptContent.forEach((message, index) => {
+          const roleColor = message.role === "system" ? "#9c88ff" : 
+                             message.role === "user" ? "#4cd137" : 
+                             message.role === "assistant" ? "#7f8fa6" : "#f5f6fa";
+          
+          html += `<div style="margin-bottom: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-left: 3px solid ${roleColor}; border-radius: 3px;">
+            <div style="font-weight: bold; color: ${roleColor}; margin-bottom: 5px;">${message.role}:</div>
+            <div style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em;">${escapeHtml(message.content)}</div>
+          </div>`;
+        });
+        
+        html += `
+            </div>
+          </div>
+        </div>`;
+      }
+      
+      // APIからの応答データ全体を表示（追加）
+      let lastApiResponse = null;
+      try {
+        lastApiResponse = JSON.parse(dataStore.getItem("last_api_response") || "null");
+      } catch (e) {}
+      
+      if (lastApiResponse) {
+        html += `<div class="data-category">
+          <h3 class="data-category-title">📥 最新レスポンスデータ</h3>
+          <div class="data-item">
+            <div class="data-key">下りデータ全内容</div>
+            <div class="data-value" style="max-height: 300px; overflow-y: auto;">
+              <pre style="margin: 0; white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">${escapeHtml(JSON.stringify(lastApiResponse, null, 2))}</pre>
+            </div>
+          </div>
+        </div>`;
+      }
+      
+      // カテゴリごとに表示
+      for (const [category, keys] of Object.entries(categories)) {
+        const categoryItems = keys.filter(key => key in allData);
+        
+        if (categoryItems.length === 0) continue;
+        
+        html += `<div class="data-category">
+          <h3 class="data-category-title">${category}</h3>`;
+        
+        for (const key of categoryItems) {
+          let value = allData[key];
+          let displayValue = value || '';
+          
+          // 値の表示形式を整える
+          if (typeof value === 'string') {
+            // APIキーは一部を隠す（閲覧モードのみ）
+            if (key === 'openai_api_key' && value && mode === 'view') {
+              displayValue = value.substring(0, 3) + '...' + value.substring(value.length - 4);
+            }
+            
+            // JSONの場合はきれいに整形（感情パラメータの場合は増減率も表示）
+            if ((value.startsWith('{') && value.endsWith('}')) || 
+                (value.startsWith('[') && value.endsWith(']'))) {
+              try {
+                const parsed = JSON.parse(value);
+                
+                // last_emotion_delta の場合、スケーリング後の値を表示
+                if (key === 'last_emotion_delta') {
+                  let lastEmotionDeltaScaled = null;
+                  try {
+                    lastEmotionDeltaScaled = JSON.parse(dataStore.getItem("last_emotion_delta_scaled") || "{}");
+                  } catch (e) {}
+                  
+                  // 現在の感情値を取得
+                  const currentAffection = Number(dataStore.getItem("affection") || "0");
+                  const currentTrust = Number(dataStore.getItem("trust") || "0");
+                  const currentFriendship = Number(dataStore.getItem("friendship") || "0");
+                  
+                  // 増減率を計算して表示
+                  if (lastEmotionDeltaScaled) {
+                    if (parsed.affection !== undefined) {
+                      const rate = lastEmotionDeltaScaled.affection_rate || 
+                        ((parsed.affection / currentAffection) * 100).toFixed(1);
+                      parsed.affection = `${parsed.affection}（実質${rate > 0 ? '+' : ''}${rate}%）`;
+                    }
+                    if (parsed.trust !== undefined) {
+                      const rate = lastEmotionDeltaScaled.trust_rate || 
+                        ((parsed.trust / currentTrust) * 100).toFixed(1);
+                      parsed.trust = `${parsed.trust}（実質${rate > 0 ? '+' : ''}${rate}%）`;
+                    }
+                    if (parsed.friendship !== undefined) {
+                      const rate = lastEmotionDeltaScaled.friendship_rate || 
+                        ((parsed.friendship / currentFriendship) * 100).toFixed(1);
+                      parsed.friendship = `${parsed.friendship}（実質${rate > 0 ? '+' : ''}${rate}%）`;
+                    }
+                  }
+                }
+                
+                displayValue = JSON.stringify(parsed, null, 2);
+              } catch (e) {
+                // パースに失敗した場合はそのまま表示
+              }
+            }
+            
+            // 長いデータURLは省略（閲覧モードのみ）
+            if (value.startsWith('data:') && value.length > 100 && mode === 'view') {
+              displayValue = value.substring(0, 50) + '...' + value.substring(value.length - 20);
+            }
+          }
+          
+          html += `<div class="data-item">
+            <div class="data-key">${key}</div>`;
+          
+          if (mode === 'edit') {
+            // 編集モードの場合は一意のIDを持つ空のテキストエリアを作成
+            const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+            html += `
+              <textarea class="data-value-editor" id="editor-${safeKey}" data-key="${key}"></textarea>
+              <div class="data-edit-controls">
+                <button class="data-edit-btn data-edit-save" onclick="saveDataEdit('${key}')">保存</button>
+                <button class="data-edit-btn data-edit-cancel" onclick="cancelDataEdit('${key}')">キャンセル</button>
+              </div>
+            `;
+          } else {
+            // 閲覧モードの場合は通常表示
+            html += `<div class="data-value">${displayValue}</div>`;
+          }
+          
+          html += `</div>`;
+        }
+        
+        html += `</div>`;
+      }
+      
+      container.innerHTML = html;
+      
+      // 編集モードの場合、各テキストエリアに値を直接設定
+      if (mode === 'edit') {
+        for (const key of Object.values(categories).flat()) {
+          if (key in allData) {
+            const value = allData[key] || '';
+            const textarea = document.getElementById(`editor-${key.replace(/[^a-zA-Z0-9]/g, '_')}`);
+            if (textarea) {
+              textarea.value = value;
+            }
+          }
+        }
+      }
+    }
+    
+    // データ編集を保存する関数も修正
+    function saveDataEdit(key) {
+      const textarea = document.getElementById(`editor-${key.replace(/[^a-zA-Z0-9]/g, '_')}`);
+      if (!textarea) {
+        showNotification(`⚠️ エディタが見つかりません: ${key}`, 'error');
+        return;
+      }
+      
+      const newValue = textarea.value;
+      
+      try {
+        // データを保存
+        dataStore.setItem(key, newValue);
+        
+        // 変更を即時反映
+        dataStore.flushChanges();
+        
+        // 成功通知
+        showNotification(`✅ ${key} を保存しました`, 'success');
+        
+        // ビューを更新
+        updateDataViewer();
+      } catch (e) {
+        showNotification(`⚠️ 保存エラー: ${e.message}`, 'error');
+      }
+    }
+    
+    // データ編集をキャンセル
+    function cancelDataEdit(key) {
+      // ビューを更新して編集内容を破棄
+      updateDataViewer();
+      showNotification('編集をキャンセルしました', 'info');
+    }
+    
+    // 通知を表示
+    function showNotification(message, type = 'info') {
+      // 既存の通知を削除
+      const existingNotif = document.getElementById('data-notification');
+      if (existingNotif) {
+        existingNotif.remove();
+      }
+      
+      // 色を設定
+      let bgColor = '#333';
+      switch (type) {
+        case 'success': bgColor = '#4CAF50'; break;
+        case 'error': bgColor = '#F44336'; break;
+        case 'info': bgColor = '#2196F3'; break;
+      }
+      
+      // 通知要素を作成
+      const notif = document.createElement('div');
+      notif.id = 'data-notification';
+      notif.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 1rem;
+        background: ${bgColor};
+        color: white;
+        border-radius: 8px;
+        z-index: 2000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        animation: fadeInOut 3s forwards;
+      `;
+      notif.textContent = message;
+      
+      // 通知を追加
+      document.body.appendChild(notif);
+      
+      // 3秒後に削除
+      setTimeout(() => {
+        notif.remove();
+      }, 3000);
+    }
+
+    // 既存の会話履歴を修復する関数を追加
+    function repairChatHistory() {
+      try {
+        let history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        let repaired = false;
+        
+        // 各メッセージをチェック
+        history = history.map(message => {
+          if (typeof message.content === "string" && 
+              message.content.includes('{') && 
+              message.content.includes('"reply":')) {
+            
+            try {
+              // reply部分を抽出
+              const replyMatch = message.content.match(/"(reply|response)"\s*:\s*"([^"]*)"/);
+              if (replyMatch && replyMatch[2]) {
+                repaired = true;
+                return {
+                  ...message,
+                  content: replyMatch[2]
+                };
+              }
+            } catch (e) {
+              console.warn("メッセージ修復中にエラー:", e);
+            }
+          }
+          return message;
+        });
+        
+        if (repaired) {
+          dataStore.setItem("chat_history", JSON.stringify(history));
+          console.log("会話履歴を修復しました");
+        }
+      } catch (e) {
+        console.error("会話履歴の修復に失敗:", e);
+      }
+    }
+
+    // エラーログ管理のための関数群
+    const errorLogger = {
+      // 最大保存数
+      MAX_LOGS: 10,
+      
+      // エラーログを保存
+      logError: function(error, context = {}) {
+        try {
+          // 現在のログを取得
+          let logs = JSON.parse(dataStore.getItem("error_logs") || "[]");
+          
+          // 新しいログを作成
+          const newLog = {
+            timestamp: new Date().toISOString(),
+            error: error instanceof Error ? error.toString() : String(error),
+            stack: error instanceof Error ? error.stack : null,
+            context: context
+          };
+          
+          // ログを追加（先頭に）
+          logs.unshift(newLog);
+          
+          // 最大数を超えた場合は古いものを削除
+          if (logs.length > this.MAX_LOGS) {
+            logs = logs.slice(0, this.MAX_LOGS);
+          }
+          
+          // 保存
+          dataStore.setItem("error_logs", JSON.stringify(logs));
+          
+          // デバッグモードがオンならエラーログ表示を更新
+          if (isDebugMode()) {
+            this.updateErrorLogDisplay();
+          }
+        } catch (e) {
+          console.error("エラーログの保存に失敗:", e);
+        }
+      },
+      
+      // ログ表示を更新
+      updateErrorLogDisplay: function() {
+        try {
+          const logArea = document.getElementById("errorLogArea");
+          const logContent = document.getElementById("errorLogContent");
+          
+          // ログが空なら非表示
+          const logs = JSON.parse(dataStore.getItem("error_logs") || "[]");
+          if (logs.length === 0) {
+            logArea.style.display = "none";
+            return;
+          }
+          
+          // 表示を更新
+          logArea.style.display = "block";
+          
+          // ログ内容をフォーマット
+          let html = "";
+          logs.forEach((log, index) => {
+            const date = new Date(log.timestamp).toLocaleString();
+            html += `<div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #333;">`;
+            html += `<div style="color: #ff6b6b; margin-bottom: 5px;">[${date}] ${log.error}</div>`;
+            
+            if (log.context) {
+              // コンテキスト情報を表示
+              html += `<div style="margin: 5px 0; color: #aaa;">コンテキスト:</div>`;
+              html += `<div style="margin-left: 10px; color: #8bc34a;">`;
+              
+              // API応答
+              if (log.context.apiResponse) {
+                html += `<div style="margin-bottom: 5px;"><strong>API応答:</strong> `;
+                try {
+                  const resp = typeof log.context.apiResponse === 'string' 
+                    ? JSON.parse(log.context.apiResponse) 
+                    : log.context.apiResponse;
+                  html += JSON.stringify(resp, null, 2).substring(0, 300);
+                  if (JSON.stringify(resp).length > 300) html += "...";
+                } catch (e) {
+                  html += String(log.context.apiResponse).substring(0, 300);
+                  if (String(log.context.apiResponse).length > 300) html += "...";
+                }
+                html += `</div>`;
+              }
+              
+              // 生のレスポンス
+              if (log.context.rawResponse) {
+                html += `<div style="margin-bottom: 5px;"><strong>生レスポンス:</strong> `;
+                html += `<span style="color: #e0e0e0;">${String(log.context.rawResponse).substring(0, 300)}</span>`;
+                if (String(log.context.rawResponse).length > 300) html += "...";
+                html += `</div>`;
+              }
+              
+              // パース結果
+              if (log.context.parsedData) {
+                html += `<div style="margin-bottom: 5px;"><strong>パース結果:</strong> `;
+                html += `<span style="color: #e0e0e0;">${JSON.stringify(log.context.parsedData, null, 2).substring(0, 300)}</span>`;
+                if (JSON.stringify(log.context.parsedData).length > 300) html += "...";
+                html += `</div>`;
+              }
+              
+              html += `</div>`;
+            }
+            
+            // スタックトレース
+            if (log.stack) {
+              html += `<div style="margin-top: 5px; color: #aaa; font-size: 0.8rem;">${log.stack}</div>`;
+            }
+            
+            html += `</div>`;
+          });
+          
+          logContent.innerHTML = html || "エラーログはありません";
+        } catch (e) {
+          console.error("エラーログ表示の更新に失敗:", e);
+        }
+      },
+      
+      // ログをクリア
+      clearLogs: function() {
+        dataStore.setItem("error_logs", "[]");
+        this.updateErrorLogDisplay();
+      }
+    };
+    
+    // エラーログをクリア
+    function clearErrorLogs() {
+      if (confirm("エラーログをクリアしますか？")) {
+        errorLogger.clearLogs();
+      }
+    }
+    
+    // エラーログをクリップボードにコピー
+    function copyErrorLogs() {
+      try {
+        const logs = JSON.parse(dataStore.getItem("error_logs") || "[]");
+        if (logs.length === 0) {
+          alert("コピーするログがありません");
+          return;
+        }
+        
+        const text = JSON.stringify(logs, null, 2);
+        navigator.clipboard.writeText(text)
+          .then(() => alert("ログをクリップボードにコピーしました"))
+          .catch(err => {
+            console.error("クリップボードへのコピーに失敗:", err);
+            alert("コピーに失敗しました: " + err);
+          });
+      } catch (e) {
+        alert("エラー: " + e);
+      }
+    }
+
+    // HTMLエスケープ関数を追加
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // フォトモードのトグル機能
+    function togglePhotoMode() {
+      const body = document.body;
+      body.classList.toggle('photo-mode');
+      
+      // 背景画像の表示を調整
+      const characterBg = document.getElementById('character-bg');
+      if (body.classList.contains('photo-mode')) {
+        // フォトモード有効時
+        characterBg.style.opacity = "1";
+        
+        // ローカルストレージに設定を保存
+        dataStore.setItem("photo_mode", "1");
+        
+        // ボタンスタイルを変更
+        document.querySelector('.photo-mode-toggle').style.background = "#2196F3";
+      } else {
+        // フォトモード無効時
+        characterBg.style.opacity = "0.2";
+        
+        // ローカルストレージに設定を保存
+        dataStore.setItem("photo_mode", "0");
+        
+        // ボタンスタイルを元に戻す
+        document.querySelector('.photo-mode-toggle').style.background = "#444";
+      }
+    }
+
+    // ファイル選択時の処理関数
+    function handleFileSelect(input) {
+      const fileInfo = document.getElementById("selectedFileInfo");
+      if (input.files && input.files[0]) {
+        const fileName = input.files[0].name;
+        fileInfo.innerHTML = `選択中: ${fileName} <span style="color: #4CAF50;">✓</span>`;
+        fileInfo.style.display = "block";
+      } else {
+        fileInfo.innerHTML = "";
+        fileInfo.style.display = "none";
+      }
+    }
+
+    const bgInput = document.getElementById("backgroundInput");
+
+    // --- 起動時に背景を復元 ---
+    window.addEventListener("DOMContentLoaded", () => {
+      // この部分は削除して、dataStore.initializeFromServer()に移動済み
+      // GASサーバーから取得したデータで初期化されるため不要
+    });
+
+    // --- ファイル選択時にbase64保存＆背景変更 ---
+    bgInput.addEventListener("change", () => {
+      const file = bgInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target.result;
+        document.getElementById("character-bg").src = base64;
+        
+        // 両方に保存（ローカルとサーバー両方）
+        dataStore.setLocalItem("bgImageData", base64);
+        dataStore.setItem("avatar_url", base64);
+        
+        // 保存成功メッセージを表示
+        const fileInfo = document.getElementById("selectedFileInfo");
+        if (fileInfo) {
+          fileInfo.innerHTML = `<span style="color: #4CAF50;">✓ 画像が保存されました</span>`;
+          fileInfo.style.display = "block";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // スマホでのブラウザアプリ再起動時の背景消失バグ対策
+    window.addEventListener("pageshow", (event) => {
+      // ページがバックフォワードキャッシュから復元された場合も含む
+      if (event.persisted) {
+        console.log("ブラウザキャッシュから復元されました");
+        
+        // 背景画像を再適用（優先順位: ローカルストレージ → サーバー）
+        const savedBg = localStorage.getItem("bgImageData");
+        if (savedBg) {
+          document.getElementById("character-bg").src = savedBg;
+        } else {
+          // サーバーからデータ取得を促す
+          dataStore._fetchAsync("avatar_url");
+        }
+      }
+    });
+    
+    // 画面読み込み完了時に背景画像を強制復元（この関数は削除、初期化処理に統合）
+    // window.addEventListener('load', () => {
+    //   // ページ全体の読み込みが完了した時点で実行
+    //   const savedImage = localStorage.getItem("bgImageData");
+    //   if (savedImage) {
+    //     document.getElementById("character-bg").src = savedImage;
+    //     console.log("ページロード完了時に背景画像を強制復元しました");
+    //   }
+    // });
+
+    // 感情パラメータの初期値と蓄積値を管理する関数を追加
+    function saveEmotionInitialValues(affection, trust, friendship) {
+      try {
+        const initialValues = {
+          affection: parseInt(affection) || 0,
+          trust: parseInt(trust) || 0,
+          friendship: parseInt(friendship) || 0
+        };
+        dataStore.setItem('emotionInitialValues', JSON.stringify(initialValues));
+        console.log('感情パラメータ初期値を保存:', initialValues);
+      } catch (e) {
+        console.error('感情パラメータ初期値の保存に失敗:', e);
+      }
+    }
+    
+    function getEmotionInitialValues() {
+      try {
+        const savedValues = dataStore.getItem('emotionInitialValues');
+        if (savedValues) {
+          return JSON.parse(savedValues);
+        }
+      } catch (e) {
+        console.error('感情パラメータ初期値の取得に失敗:', e);
+      }
+      
+      // デフォルト値
+      return {
+        affection: 0,
+        trust: 0,
+        friendship: 0
+      };
+    }
+    
+    function calculateAccumulatedValues() {
+      // 現在の値を取得
+      const currentAffection = parseInt(dataStore.getItem("affection") || "0");
+      const currentTrust = parseInt(dataStore.getItem("trust") || "0");
+      const currentFriendship = parseInt(dataStore.getItem("friendship") || "0");
+      
+      // 初期値を取得
+      const initialValues = getEmotionInitialValues();
+      
+      // 蓄積値を計算
+      const accumulatedValues = {
+        affection: currentAffection - initialValues.affection,
+        trust: currentTrust - initialValues.trust,
+        friendship: currentFriendship - initialValues.friendship
+      };
+      
+      console.log('蓄積感情値を計算:', accumulatedValues);
+      return accumulatedValues;
+    }
+
+    // メッセージのみをリセットする関数
+    function resetMessagesOnly() {
+      if (!confirm("会話履歴と感情パラメタのみをリセットしますか？キャラ設定・画像・ユーザー設定は保持されます。")) return;
+      
+      // 保存しておくべきデータを取得
+      const characterPrompt = dataStore.getItem("character_prompt");
+      const charSelf = dataStore.getItem("char_self");
+      const avatarUrl = dataStore.getItem("avatar_url");
+      const apiKey = dataStore.getItem("openai_api_key");
+      const storyMode = dataStore.getItem("story_mode");
+      
+      // リセット対象のキーを特定（キャラ設定・画像・ユーザー設定以外）
+      const resetKeys = [
+        "chat_history", "chat_story", "memory_counter", "last_keywords", 
+        "affection", "trust", "friendship", "last_emotion_delta",
+        "short_term_memory", "known_facts", "recent_dialogue_compressed"
+      ];
+      
+      // キャッシュと実際のデータストアの両方をクリア
+      resetKeys.forEach(key => {
+        // キャッシュをクリア
+        if (dataStore.cache) {
+          dataStore.cache[key] = null;
+        }
+        // データストアをクリア（実際にnullを設定）
+        dataStore.setItem(key, null);
+      });
+      
+      // chat_storyは空の配列として再初期化（nullではなく[]）
+      dataStore.setItem("chat_story", "[]");
+      if (dataStore.cache) {
+        dataStore.cache["chat_story"] = "[]";
+      }
+      
+      // 保存したデータを再設定
+      if (characterPrompt) dataStore.setItem("character_prompt", characterPrompt);
+      if (charSelf) dataStore.setItem("char_self", charSelf);
+      if (avatarUrl) dataStore.setItem("avatar_url", avatarUrl);
+      if (apiKey) dataStore.setItem("openai_api_key", apiKey);
+      if (storyMode) dataStore.setItem("story_mode", storyMode);
+      
+      // 変更をサーバーに反映
+      dataStore.flushChanges();
+      
+      // UI更新
+      updateUIAfterReset();
+    }
+    
+    // スケーリング関数（共通化のため関数として切り出し）
+    function scaleEmotionValue(delta) {
+      // スケーリング関数の実装
+      const absDelta = Math.abs(delta);
+      let scaleFactor = 2; // デフォルトのスケーリング係数
+      
+      if (absDelta <= 2) {
+        scaleFactor = 3;
+      } else if (absDelta <= 4) {
+        scaleFactor = 2.5;
+      } else {
+        scaleFactor = 2;
+      }
+      
+      // 元の符号を保持したままスケーリング
+      let scaledDelta = delta * scaleFactor;
+      
+      // ±25を上限とする
+      const limitedDelta = Math.max(-25, Math.min(25, scaledDelta));
+      
+      // デバッグ用ログ出力
+      console.log(`🧮 感情スケーリング: ${delta} (abs: ${absDelta}) × ${scaleFactor} = ${scaledDelta} → ${limitedDelta}`);
+      
+      return limitedDelta;
+    }
+
+    // キャラがストーリーをリードする確率の更新
+    function updateStoryLeadProbability(value) {
+      // スライダーの値を保存
+      dataStore.setItem("story_lead_probability", value);
+      
+      // 表示を更新
+      document.getElementById("storyLeadValue").textContent = value + "%";
+    }
+    
+    // キャラがストーリーをリードする確率の状態を反映
+    function applyStoryLeadProbability() {
+      // 保存されている値を取得（デフォルトは75%）
+      const probability = dataStore.getItem("story_lead_probability") || "75";
+      
+      // スライダーの値を設定
+      document.getElementById("storyLeadSlider").value = probability;
+      
+      // 表示を更新
+      document.getElementById("storyLeadValue").textContent = probability + "%";
+    }
+    
+    // 既知情報モーダルの表示切替
+    function toggleKnownFactsModal() {
+      const modal = document.getElementById("knownFactsModal");
+      if (modal.style.display === "none") {
+        // モーダルを表示
+        modal.style.display = "block";
+        
+        // 保存されている情報を読み込んで表示
+        const knownFacts = dataStore.getItem("known_facts") || "";
+        document.getElementById("knownFactsInput").value = knownFacts;
+      } else {
+        // モーダルを非表示
+        modal.style.display = "none";
+      }
+    }
+    
+    // 既知情報を保存
+    function saveKnownFacts() {
+      const knownFacts = document.getElementById("knownFactsInput").value.trim();
+      dataStore.setItem("known_facts", knownFacts);
+      
+      // 変更を即時保存
+      dataStore.flushChanges();
+      
+      // モーダルを閉じる
+      toggleKnownFactsModal();
+      
+      // 保存成功メッセージを表示
+      alert("既知情報を保存しました！");
+    }
+    
+    // 既知情報を取得
+    function getKnownFacts() {
+      return dataStore.getItem("known_facts") || "";
+    }
+
+    // 再生成用のプロンプト入力モーダルを表示
+    function showRegenPromptModal() {
+      const modal = document.getElementById("regenerateModal");
+      document.getElementById("regenPrompt").value = "";
+      modal.style.display = "flex";
+      
+      // 再生成のために現在の物語展開ヒントを保存
+      saveForRegeneration();
+    }
+    
+    // 再生成用にユーザーの最後の入力と物語展開ヒントを保存
+    function saveForRegeneration() {
+      // 最後のユーザーメッセージを取得
+      const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+      const userMessages = history.filter(m => m.role === "user");
+      const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : "";
+
+      // 保存
+      dataStore.setItem("last_user_message", lastUserMessage);
+      
+      // 次回の再生成で同じプロットヒントを使うため一時保存
+      const currentPlotHint = dataStore.getItem("next_plot_hint");
+      if (currentPlotHint) {
+        dataStore.setItem("regen_plot_hint", currentPlotHint);
+      }
+      
+      // 感情変動のリセット用
+      const lastEmotionDelta = dataStore.getItem("last_emotion_delta");
+      if (lastEmotionDelta) {
+        try {
+          const delta = JSON.parse(lastEmotionDelta);
+          
+          // 相殺用に反転
+          if (delta.affection) updateParam("affection", -delta.affection);
+          if (delta.trust) updateParam("trust", -delta.trust);
+          if (delta.friendship) updateParam("friendship", -delta.friendship);
+        } catch (e) {
+          console.error("感情値相殺エラー:", e);
+        }
+      }
+    }
+
+    // 再生成ダイアログの実行ボタン
+    async function executeRegeneration() {
+      try {
+        const userPrompt = document.getElementById("regenPrompt").value.trim();
+        if (userPrompt) {
+          window.userPromptOverride = userPrompt;
+        } else {
+          window.userPromptOverride = null;
+        }
+        
+        // 会話履歴から最後のアシスタントメッセージを削除
+        const history = JSON.parse(dataStore.getItem("chat_history") || "[]");
+        let lastUserMessage = "";
+        
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].role === "assistant") {
+            history.splice(i, 1);
+            continue;
+          }
+          if (history[i].role === "user" && !lastUserMessage) {
+            lastUserMessage = history[i].content;
+            break;
+          }
+        }
+        
+        // 履歴を保存して更新
+        dataStore.setItem("chat_history", JSON.stringify(history));
+        loadHistory();
+        
+        // 再生成モードで送信
+        await sendMessage(true);
+        
+        // 後処理
+        window.userPromptOverride = null;
+        document.getElementById("regenerateModal").style.display = "none";
+      } catch (e) {
+        console.error("再生成処理でエラーが発生:", e);
+        alert("再生成中にエラーが発生しました: " + e.message);
+      }
+    }
+
+    // GPT-4oログをクリアする関数
+    function clearGpt4oLogs() {
+      dataStore.setItem("gpt4o_logs", "[]");
+      document.getElementById("gpt4oLogsContent").textContent = "ログはありません";
+      updateGpt4oLogsDisplay();
+    }
+
+    // GPT-4oログを更新する関数
+    function updateGpt4oLogsDisplay() {
+      const logs = JSON.parse(dataStore.getItem("gpt4o_logs") || "[]");
+      let logContent = "";
+      logs.forEach((log, index) => {
+        logContent += `<div style="margin-bottom: 5px;">${log.date}: ${log.suggestion}</div>`;
+      });
+      document.getElementById("gpt4oLogsContent").innerHTML = logContent || "ログはありません";
+    }
+
+    // アプリケーション初期化
+    document.addEventListener("DOMContentLoaded", function() {
+      // データの初期化
+      dataStore.initializeFromServer();
+      
+      // 設定の読み込み
+      loadSettingsFromStore();
+      
+      // 履歴の読み込み
+      loadHistory();
+      
+      // 感情パラメータの表示
+      renderEmotionParams();
+      
+      // ストーリーモードの設定を反映
+      applyStoryMode();
+      
+      // GPT-4oのログ表示を更新
+      updateGpt4oLogsDisplay();
+      
+      // 画像の読み込み
+      const savedImageData = dataStore.getLocalItem("bgImageData");
+      if (savedImageData) {
+        document.getElementById("character-bg").src = savedImageData;
+      } else {
+        const avatarUrl = dataStore.getItem("avatar_url");
+        if (avatarUrl) {
+          document.getElementById("character-bg").src = avatarUrl;
+        }
+      }
+      
+      // スライダーを強制的に表示（追加）
+      setTimeout(() => {
+        const sliderContainer = document.querySelector('#storyIntensitySelector > div:last-child');
+        if (sliderContainer) {
+          sliderContainer.style.display = "block";
+        }
+        // 物語展開確率バーも確実に表示
+        const storyLeadSlider = document.getElementById("storyLeadSlider");
+        if (storyLeadSlider) {
+          storyLeadSlider.style.display = "block";
+        }
+        applyStoryLeadProbability();
+      }, 100);
+    });
+
+    // 設定をストアから読み込む関数
+    function loadSettingsFromStore() {
+      // UI要素を更新
+      const apiKey = dataStore.getItem("openai_api_key");
+      const characterPrompt = dataStore.getItem("character_prompt");
+      const charSelf = dataStore.getItem("char_self");
+      const storyMode = dataStore.getItem("story_mode") || "1"; // デフォルトでON
+
+      // 値を設定
+      if (apiKey) document.getElementById("apiKey").value = apiKey;
+      if (characterPrompt) document.getElementById("charPrompt").value = characterPrompt;
+      if (charSelf) document.getElementById("charSelfSetting").value = charSelf;
+
+      // ストーリーモード
+      document.getElementById("storyModeToggle").checked = storyMode === "1";
+      
+      // ストーリーモードの表示を更新
+      updateStoryMode();
+    }
+  </script>
+</body>
+
+</html> 
